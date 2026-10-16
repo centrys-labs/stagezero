@@ -203,7 +203,9 @@
 								<!-- Same 12px inset as a copyable cell, reached without the nesting
 							     since there is no surface to hold off the edges here. -->
 								<td class="px-3 py-2.5 align-top text-muted-foreground">
-									your server's IP address{serverHost ? ` (StageZero reaches it at ${serverHost})` : ''}
+									your server's IP address{serverHost
+										? ` (StageZero reaches it at ${serverHost})`
+										: ''}
 								</td>
 							{/if}
 						</tr>

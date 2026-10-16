@@ -1239,8 +1239,8 @@
 							</p>
 						{:else if domains.length > 0}
 							<p class="text-[13px] text-muted-foreground">
-								Domain traffic goes through the StageZero proxy — the host port below only applies once
-								every domain is removed.
+								Domain traffic goes through the StageZero proxy — the host port below only applies
+								once every domain is removed.
 							</p>
 						{/if}
 					</div>

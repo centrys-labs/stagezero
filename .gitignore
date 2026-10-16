@@ -6,3 +6,5 @@
 .unvibe/
 skills-lock.json
 .GAP.md
+node_modules/
+.env

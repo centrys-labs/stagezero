@@ -155,9 +155,7 @@
 												ariaLabel="Proxy error: {server.proxy_last_error}"
 												triggerClass="grid h-5 w-5 place-items-center rounded text-destructive transition-colors hover:text-destructive/80 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
 											>
-												{#snippet children()}
-													<Icon src={InformationCircle} theme="outline" class="h-3.5 w-3.5" />
-												{/snippet}
+												<Icon src={InformationCircle} theme="outline" class="h-3.5 w-3.5" />
 											</Tooltip>
 										{/if}
 									</div>

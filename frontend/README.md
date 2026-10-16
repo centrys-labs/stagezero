@@ -1,42 +1,21 @@
-# sv
+# StageZero frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit, Svelte 5, TypeScript, Vite, and Tailwind CSS v4. The Go API and PostgreSQL setup are documented in the [root README](../README.md).
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
+Install Bun 1.4.3 and Node.js 22, then follow the [root quick start](../README.md) for a local API and database. For frontend-only work, from the repository root:
 
 ```sh
-# create a new project
-npx sv create my-app
+bun install --frozen-lockfile
+bun run dev:web
 ```
 
-To recreate this project with the same configuration:
+Set `API_BASE_URL` in `.env` for server-side API requests; the Vite dev server proxies browser requests under `/api` to `http://localhost:8080`. The API and database must be running for authenticated pages.
 
 ```sh
-# recreate this project
-pnpm dlx sv@0.12.4 create --template minimal --types ts --add prettier eslint tailwindcss="plugins:typography,forms" --install pnpm frontend
+bun run check
+bun run lint
+bun run build
+bun run generate:api
 ```
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+`generate:api` writes `src/lib/api/v1.d.ts` from `api/openapi.yaml`. Copy `frontend/.env.example` to `frontend/.env` if not running setup. Commit generated types alongside spec changes. Dependencies are locked in the repository root `bun.lock`; do not install or create a second lockfile here. Bun manages packages and runs scripts, but Vite uses Node.js, and the existing `adapter-auto` does not choose a Bun production server. Configure a supported deployment adapter when deploying.
