@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/WahyuS002/uploy/telemetry"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
-	dockerapi "github.com/WahyuS002/uploy/docker"
-	"github.com/WahyuS002/uploy/proxy"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/db"
+	dockerapi "github.com/centrys-labs/stagezero/docker"
+	"github.com/centrys-labs/stagezero/proxy"
+	"github.com/centrys-labs/stagezero/ssh"
+	"github.com/centrys-labs/stagezero/telemetry"
 )
 
 func StartDeploymentReconciler(ctx context.Context) {

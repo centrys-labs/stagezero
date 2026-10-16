@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/WahyuS002/uploy/alerts"
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/respond"
+	"github.com/centrys-labs/stagezero/alerts"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/respond"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -143,7 +143,7 @@ func (s *Server) TestNotificationChannel(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	err = alerts.Send(r.Context(), alerts.Channel{ID: channel.ID, Name: channel.Name, Type: channel.Type, Enabled: channel.Enabled, Config: channel.Config}, alerts.Message{
-		Title: "[uploy] Test notification", Body: "This channel is configured correctly.", StartedAt: time.Now().UTC(),
+		Title: "[StageZero] Test notification", Body: "This channel is configured correctly.", StartedAt: time.Now().UTC(),
 	})
 	if err != nil {
 		respond.JSON(w, http.StatusBadGateway, gen.ErrorResponse{Error: "notification test failed: " + err.Error()})

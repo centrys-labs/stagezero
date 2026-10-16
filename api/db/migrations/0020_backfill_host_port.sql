@@ -2,7 +2,7 @@
 
 -- host_port changes meaning here. It used to be read as "NULL means publish on
 -- the same number as port"; from now on NULL means the service is not published
--- to the host at all — reachable by other services on the uploy network, and by
+-- to the host at all — reachable by other services on the stagezero network, and by
 -- nothing outside the machine. That is the default a database should have.
 --
 -- Every existing row was written under the old reading, so leaving them NULL

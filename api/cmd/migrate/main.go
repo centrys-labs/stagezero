@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"os"
 
-	"github.com/WahyuS002/uploy/db"
+	"github.com/centrys-labs/stagezero/db"
 	"github.com/joho/godotenv"
 )
 

@@ -11,21 +11,21 @@ import (
 	"sync"
 	"time"
 
-	dockerapi "github.com/WahyuS002/uploy/docker"
-	"github.com/WahyuS002/uploy/ssh"
+	dockerapi "github.com/centrys-labs/stagezero/docker"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
-const networkName = "uploy"
-const proxyBaseDir = "/data/uploy/proxy"
+const networkName = "stagezero"
+const proxyBaseDir = "/data/stagezero/proxy"
 const composeFilePath = proxyBaseDir + "/docker-compose.yaml"
-const proxyContainerName = "uploy-proxy"
+const proxyContainerName = "stagezero-proxy"
 const traefikImage = "traefik:v3.6"
 const proxyAPIAddress = "127.0.0.1:8081"
 
 // ProgressFunc is a callback for reporting proxy setup progress.
 type ProgressFunc func(msg string)
 
-// EnsureNetwork creates the shared "uploy" network if it is not there already.
+// EnsureNetwork creates the shared "stagezero" network if it is not there already.
 //
 // Every deployed container joins it, not just the ones behind the proxy: it is
 // what lets an app reach a database by container name, and it is the only way a
@@ -58,7 +58,7 @@ func EnsureProxy(client *ssh.Client, progress ProgressFunc) error {
 	}
 
 	// 2. Create Docker network
-	progress("creating uploy network...")
+	progress("creating stagezero network...")
 	if err := EnsureNetwork(client); err != nil {
 		return err
 	}

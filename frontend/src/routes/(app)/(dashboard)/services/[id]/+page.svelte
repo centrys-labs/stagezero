@@ -29,7 +29,7 @@
 </script>
 
 <svelte:head>
-	<title>{data.service ? `${data.service.name} · Uploy` : 'Service · Uploy'}</title>
+	<title>{data.service ? `${data.service.name} · StageZero` : 'Service · StageZero'}</title>
 </svelte:head>
 
 {#if data.service}

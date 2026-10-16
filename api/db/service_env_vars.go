@@ -3,11 +3,11 @@ package db
 import (
 	"context"
 	"fmt"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"time"
 
-	"github.com/WahyuS002/uploy/crypto"
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/crypto"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 )
 
 // decryptEnvValue reads a stored env var value.

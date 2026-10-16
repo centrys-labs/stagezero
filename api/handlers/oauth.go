@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/db"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/db"
 	"github.com/jackc/pgx/v5"
 )
 

@@ -1,0 +1,26 @@
+{
+	"name": "stagezero",
+	"packageManager": "bun@1.4.3",
+	"private": true,
+	"scripts": {
+		"setup": "bun scripts/setup.ts",
+		"dev": "bun run --parallel dev:api dev:web",
+		"dev:api": "cd api && if command -v air >/dev/null; then air; else go run .; fi; exit 1",
+		"dev:web": "bun run --cwd frontend dev",
+		"build": "bun run build:api && bun run build:web",
+		"build:api": "cd api && go build ./...",
+		"build:web": "bun run --cwd frontend build",
+		"check": "cd api && go vet ./... && cd .. && bun run --cwd frontend check",
+		"lint": "bun run --cwd frontend lint",
+		"format": "bun run --cwd frontend format",
+		"test": "bun run test:api && bun test scripts/setup.test.ts",
+		"test:api": "cd api && go test ./...",
+		"db:up": "docker compose up -d --wait postgres",
+		"db:down": "docker compose stop postgres",
+		"db:migrate": "bun scripts/setup.ts --migrate",
+		"generate:api": "bun run --cwd frontend generate:api",
+		"generate:go": "cd api && sqlc generate && oapi-codegen -config oapi-codegen.yaml openapi.yaml",
+		"generate": "bun run generate:go && bun run generate:api"
+	},
+	"workspaces": ["frontend"]
+}

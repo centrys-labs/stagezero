@@ -36,13 +36,13 @@ func mustParseCIDRs(cidrs []string) []*net.IPNet {
 	return nets
 }
 
-// resolver asks nameservers rather than the machine Uploy happens to run on.
+// resolver asks nameservers rather than the machine StageZero happens to run on.
 //
 // PreferGo skips cgo's getaddrinfo, and with it the operating system's DNS
 // cache. That cache is not a detail: on the machine this was found on, a record
 // deleted at the registrar an hour earlier still answered with its old address
 // through getaddrinfo, while every nameserver — the domain's own included —
-// returned NXDOMAIN. Uploy called the domain live on the strength of it, and it
+// returned NXDOMAIN. StageZero called the domain live on the strength of it, and it
 // was live, from exactly one computer in the world.
 //
 // The Go resolver reads the same /etc/resolv.conf, so this asks the same

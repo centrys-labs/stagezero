@@ -59,7 +59,7 @@
 		credentials?.metrics_url
 			? [
 					'scrape_configs:',
-					`  - job_name: uploy-${server?.name ?? 'server'}`,
+					`  - job_name: stagezero-${server?.name ?? 'server'}`,
 					'    scheme: https',
 					'    metrics_path: /metrics',
 					'    authorization:',
@@ -143,8 +143,8 @@
 		{:else}
 			<div class="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4">
 				<p class="text-sm leading-6 text-muted-foreground">
-					Uploy's own charts need none of this — it reads the agent over SSH. These are for pointing
-					a Prometheus-compatible collector at the same metrics.
+					StageZero's own charts need none of this — it reads the agent over SSH. These are for
+					pointing a Prometheus-compatible collector at the same metrics.
 				</p>
 
 				<div class="flex flex-col gap-1.5">

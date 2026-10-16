@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	dockerapi "github.com/WahyuS002/uploy/docker"
-	"github.com/WahyuS002/uploy/proxy"
-	"github.com/WahyuS002/uploy/ssh"
+	dockerapi "github.com/centrys-labs/stagezero/docker"
+	"github.com/centrys-labs/stagezero/proxy"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 const (
@@ -166,12 +166,12 @@ func prepareMonitoringHost(ctx context.Context, client *ssh.Client, cfg Config) 
 
 // buildRunCommand publishes the agent on loopback only. The control plane
 // reaches it by tunneling through the server's SSH connection, and a public
-// FQDN reaches it over the uploy network by container name, so binding the port
+// FQDN reaches it over the stagezero network by container name, so binding the port
 // to a routable address would expose it without anything asking for that.
 func buildRunCommand(docker string, cfg Config) string {
 	publishedAddress := net.JoinHostPort(loopbackAddress, strconv.Itoa(cfg.HostPort))
 	return fmt.Sprintf(
-		"%s run -d --name %s --restart unless-stopped --network uploy -p %s:%d "+
+		"%s run -d --name %s --restart unless-stopped --network stagezero -p %s:%d "+
 			"-v /var/run/docker.sock:/var/run/docker.sock:ro -v /proc:/host/proc:ro -v /sys:/host/sys:ro -v /:/host:ro -v %s:/data "+
 			"-e UPLOY_MONITOR_CONTROL_TOKEN=%s -e UPLOY_MONITOR_READER_TOKEN=%s "+
 			"-e UPLOY_MONITOR_RETENTION_DAYS=%d -e HOST_PROC=/host/proc -e HOST_SYS=/host/sys -e HOST_ROOT=/host %s",

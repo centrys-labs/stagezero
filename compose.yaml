@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: uploy
+      POSTGRES_USER: stagezero
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: uploy
+      POSTGRES_DB: stagezero
     ports:
       - "5432:5432"
     volumes:
@@ -12,7 +12,7 @@ services:
       # the cluster in a version-specific subdir so pg_upgrade --link works.
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U uploy -d uploy"]
+      test: ["CMD-SHELL", "pg_isready -U stagezero -d stagezero"]
       interval: 2s
       timeout: 3s
       retries: 15

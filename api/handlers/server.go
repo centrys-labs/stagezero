@@ -1,6 +1,6 @@
 package handlers
 
-import "github.com/WahyuS002/uploy/gen"
+import "github.com/centrys-labs/stagezero/gen"
 
 type Server struct{}
 

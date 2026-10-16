@@ -2,13 +2,13 @@ package jobs
 
 import (
 	"context"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"sync/atomic"
 	"time"
 
-	"github.com/WahyuS002/uploy/crypto"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/crypto"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 const domainCheckInterval = 60 * time.Second

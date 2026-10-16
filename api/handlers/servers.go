@@ -3,17 +3,17 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"net"
 	"net/http"
 	"strings"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/proxy"
-	"github.com/WahyuS002/uploy/respond"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/proxy"
+	"github.com/centrys-labs/stagezero/respond"
+	"github.com/centrys-labs/stagezero/ssh"
 	"github.com/jackc/pgx/v5"
 )
 

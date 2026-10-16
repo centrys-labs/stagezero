@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { api } from '$lib/api/client';
 	import type { components } from '$lib/api/v1';
@@ -122,7 +123,7 @@
 				deleteError = (error as { error?: string }).error ?? 'Failed to delete project';
 				return;
 			}
-			await goto('/projects', {
+			await goto(resolve('/projects'), {
 				state: { toastFlash: { tone: 'success', title: 'Project deleted' } }
 			});
 		} catch {
@@ -134,7 +135,7 @@
 </script>
 
 <svelte:head>
-	<title>{project ? `${project.name} settings · Uploy` : 'Project settings · Uploy'}</title>
+	<title>{project ? `${project.name} settings · StageZero` : 'Project settings · StageZero'}</title>
 </svelte:head>
 
 <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card">

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
+	"github.com/centrys-labs/stagezero/db"
 )
 
 func TestImageCommit(t *testing.T) {

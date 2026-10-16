@@ -22,7 +22,7 @@ func TestSendDiscord(t *testing.T) {
 	}))
 	defer server.Close()
 
-	err := Send(context.Background(), Channel{Type: "discord", Enabled: true, Config: map[string]interface{}{"url": server.URL}}, Message{Title: "[uploy] CPU high", Body: "api is above 85%", StartedAt: time.Now()})
+	err := Send(context.Background(), Channel{Type: "discord", Enabled: true, Config: map[string]interface{}{"url": server.URL}}, Message{Title: "[StageZero] CPU high", Body: "api is above 85%", StartedAt: time.Now()})
 	if err != nil {
 		t.Fatalf("Send() error = %v", err)
 	}

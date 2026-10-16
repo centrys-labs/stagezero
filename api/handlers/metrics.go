@@ -3,18 +3,18 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/jobs"
-	"github.com/WahyuS002/uploy/monitoring"
-	"github.com/WahyuS002/uploy/respond"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/jobs"
+	"github.com/centrys-labs/stagezero/monitoring"
+	"github.com/centrys-labs/stagezero/respond"
 )
 
 const metricsRefreshSeconds = 15

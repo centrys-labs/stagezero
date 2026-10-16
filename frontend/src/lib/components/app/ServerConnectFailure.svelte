@@ -17,7 +17,7 @@
 			case 'unreachable':
 				return {
 					title: `Nothing answered at ${target}`,
-					body: 'Check the address and port, and make sure a firewall or security group allows SSH from Uploy.'
+					body: 'Check the address and port, and make sure a firewall or security group allows SSH from StageZero.'
 				};
 			case 'key_rejected':
 				return {
@@ -27,7 +27,7 @@
 			case 'key_invalid':
 				return {
 					title: `${keyName} can't be used`,
-					body: 'Uploy could not read this key. Generate a new one and authorize that instead.'
+					body: 'StageZero could not read this key. Generate a new one and authorize that instead.'
 				};
 			case 'session_failed':
 				return {
@@ -37,7 +37,7 @@
 			case 'docker_missing':
 				return {
 					title: 'Docker is not reachable here',
-					body: `Uploy deploys with Docker. Install it on ${controller.host}, and make sure ${controller.sshUser} can run it without a password prompt.`
+					body: `StageZero deploys with Docker. Install it on ${controller.host}, and make sure ${controller.sshUser} can run it without a password prompt.`
 				};
 			default:
 				return { title: 'Could not connect', body: '' };

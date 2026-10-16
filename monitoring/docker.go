@@ -117,7 +117,7 @@ func (c *dockerClient) podman() bool {
 
 func (c *dockerClient) listContainers(ctx context.Context) ([]dockerContainer, error) {
 	_ = c.ensureVersion(ctx)
-	filters, err := json.Marshal(map[string][]string{"label": {"uploy.deployment_id"}})
+	filters, err := json.Marshal(map[string][]string{"label": {"stagezero.deployment_id"}})
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +421,7 @@ func collectDockerSamples(ctx context.Context, client dockerAPI, tracker *docker
 	observedIDs := make(map[string]struct{}, len(containers))
 	for _, container := range containers {
 		id := strings.TrimSpace(container.ID)
-		deploymentID := strings.TrimSpace(container.Labels["uploy.deployment_id"])
+		deploymentID := strings.TrimSpace(container.Labels["stagezero.deployment_id"])
 		if id == "" || deploymentID == "" {
 			continue
 		}

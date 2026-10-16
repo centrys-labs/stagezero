@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 // Transport carries requests to a monitoring agent's HTTP API.
 //
 // The agent publishes its port on the server's loopback only, so reaching it
-// means tunneling through the SSH connection Uploy already holds. Naming that as
+// means tunneling through the SSH connection StageZero already holds. Naming that as
 // an interface leaves room for an agent-initiated transport later — for servers
-// Uploy cannot open a connection to at all — without disturbing any of the call
+// StageZero cannot open a connection to at all — without disturbing any of the call
 // sites in agent.go.
 type Transport interface {
 	// BaseURL is the agent's root URL, without a trailing slash.

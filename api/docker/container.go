@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 // CommandRunner executes Docker CLI commands on a remote server.

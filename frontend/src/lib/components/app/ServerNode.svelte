@@ -73,7 +73,7 @@
 		<div class="flex flex-col items-start gap-2.5 px-3 py-3">
 			<p class="text-sm text-muted-foreground">
 				{#if canConnect}
-					Uploy deploys to machines you own. Connect one to deploy images here.
+					StageZero deploys to machines you own. Connect one to deploy images here.
 				{:else}
 					Ask a workspace owner to connect a server before deploying images.
 				{/if}

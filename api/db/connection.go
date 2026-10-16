@@ -2,10 +2,10 @@ package db
 
 import (
 	"context"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"time"
 
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

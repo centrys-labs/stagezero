@@ -634,7 +634,7 @@ export interface paths {
 		 *     starting with the last 200 lines and then following live. OpenAPI does
 		 *     not natively model SSE, so this endpoint is documented for reference only.
 		 *
-		 *     Unlike deployment logs these are not stored by Uploy — Docker holds the
+		 *     Unlike deployment logs these are not stored by StageZero — Docker holds the
 		 *     history, so a reconnect re-tails rather than resuming.
 		 *
 		 *     **SSE events (not modeled by this schema):**
@@ -1001,17 +1001,17 @@ export interface components {
 		};
 		ConfigureServerMonitoringRequest: {
 			/**
-			 * @description Loopback port the agent is published on. Uploy reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
+			 * @description Loopback port the agent is published on. StageZero reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
 			 * @default 9184
 			 */
 			port: number;
 			/** @default 7 */
 			retention_days: number;
-			/** @description Optional public FQDN. Uploy routes it through Traefik with HTTPS. */
+			/** @description Optional public FQDN. StageZero routes it through Traefik with HTTPS. */
 			fqdn?: string;
 			/**
 			 * Format: password
-			 * @description Read token for external scrapers. Omit it — Uploy generates one on first setup and keeps the existing one afterwards.
+			 * @description Read token for external scrapers. Omit it — StageZero generates one on first setup and keeps the existing one afterwards.
 			 */
 			reader_token?: string;
 		};
@@ -1109,7 +1109,7 @@ export interface components {
 			image: string;
 			/** @description Container port the service listens on. */
 			container_port: number;
-			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
+			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
 			host_port?: number;
 		};
 		CreateProjectFromImageResponse: {
@@ -1138,7 +1138,7 @@ export interface components {
 			container_name: string;
 			/** @description Container port the image listens on. */
 			container_port: number;
-			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
+			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
 			host_port?: number;
 			server_id: string;
 			environment_id: string;
@@ -1154,7 +1154,7 @@ export interface components {
 			container_name: string;
 			/** @description Container port the image listens on. */
 			container_port: number;
-			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
+			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
 			host_port?: number;
 			server_id: string;
 		};
@@ -1165,7 +1165,7 @@ export interface components {
 			container_name: string;
 			/** @description Container port the image listens on. */
 			container_port: number;
-			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
+			/** @description Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy. */
 			host_port?: number;
 			server_id: string;
 			/** @enum {string} */
@@ -1178,7 +1178,7 @@ export interface components {
 			updated_at: string;
 			/**
 			 * @description How many changes are waiting to be deployed: the difference between the service's current configuration and the configuration its last successful deployment actually shipped, counted per field, per domain and per variable. Zero means the running container matches what the service says it is.
-			 *     A service with nothing to compare against — never deployed, or last deployed before Uploy recorded configurations — reports 1. It is pending, but there is no itemised answer to give.
+			 *     A service with nothing to compare against — never deployed, or last deployed before StageZero recorded configurations — reports 1. It is pending, but there is no itemised answer to give.
 			 *     Derived per request, never stored.
 			 */
 			pending_change_count: number;
@@ -1268,7 +1268,7 @@ export interface components {
 			name: string;
 			environment_name: string;
 			/**
-			 * @description monitoring_disabled means the deployment server runs no monitoring agent, so Uploy has no metrics for it. It is a setup state, not a failure.
+			 * @description monitoring_disabled means the deployment server runs no monitoring agent, so StageZero has no metrics for it. It is a setup state, not a failure.
 			 * @enum {string}
 			 */
 			status:
@@ -1315,7 +1315,7 @@ export interface components {
 			new_value?: string;
 		};
 		PendingChangesResponse: {
-			/** @description False when there is no deployed configuration to compare against: the service has never deployed, or last deployed before Uploy recorded configurations. The service is pending either way, but changes is empty because no itemised answer exists — say so rather than showing an empty list under a badge that says otherwise. */
+			/** @description False when there is no deployed configuration to compare against: the service has never deployed, or last deployed before StageZero recorded configurations. The service is pending either way, but changes is empty because no itemised answer exists — say so rather than showing an empty list under a badge that says otherwise. */
 			has_baseline: boolean;
 			changes: components['schemas']['ConfigChange'][];
 		};

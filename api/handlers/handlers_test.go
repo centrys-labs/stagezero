@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/handlers"
-	"github.com/WahyuS002/uploy/respond"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/handlers"
+	"github.com/centrys-labs/stagezero/respond"
 )
 
 // newTestMux wires the Server through the generated handler with the same

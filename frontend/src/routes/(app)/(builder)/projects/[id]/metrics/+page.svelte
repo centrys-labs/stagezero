@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { api } from '$lib/api/client';
 	import type { components, paths } from '$lib/api/v1';
 	import Badge from '$lib/components/ui/Badge.svelte';
@@ -22,9 +23,7 @@
 	type DeploymentMarker = components['schemas']['DeploymentMarker'];
 	type Status = ServiceMetrics['status'];
 	type HistoryRange = NonNullable<
-		NonNullable<
-			paths['/api/projects/{id}/metrics/history']['get']['parameters']['query']
-		>['since']
+		NonNullable<paths['/api/projects/{id}/metrics/history']['get']['parameters']['query']>['since']
 	>;
 	type HistoryPoint = {
 		at: string;
@@ -100,7 +99,7 @@
 		unmonitoredServers.reduce((total, server) => total + server.service_count, 0)
 	);
 	let unmonitoredExplanation = $derived(
-		`Uploy reads container metrics from the uploy-monitor agent. ${unmonitoredNames} ${
+		`StageZero reads container metrics from the monitoring agent. ${unmonitoredNames} ${
 			unmonitoredServers.length === 1 ? 'does' : 'do'
 		} not run it yet, so there are no metrics for the ${countServices(
 			unmonitoredServiceCount
@@ -136,7 +135,7 @@
 	$effect(() => {
 		const id = projectId;
 		const range = historyRange;
-		retryVersion;
+		void retryVersion;
 		let cancelled = false;
 
 		function clearRefresh() {
@@ -290,6 +289,8 @@
 			6 * 60 * 60 * 1000,
 			Math.ceil(Math.max(1, end - start) / MAX_VISIBLE_MARKERS)
 		);
+		// This map is local to the calculation and never held in reactive state.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const buckets = new Map<number, DeploymentMarker[]>();
 		for (const marker of sorted) {
 			const bucket = Math.floor(new Date(marker.at).getTime() / bucketSize) * bucketSize;
@@ -355,6 +356,8 @@
 			networkIn: number;
 			networkOut: number;
 		};
+		// This map is local to the calculation and never held in reactive state.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const buckets = new Map<string, Aggregate>();
 		for (const service of response.services) {
 			for (const deployment of service.deployments) {
@@ -516,16 +519,14 @@
 {/snippet}
 
 <svelte:head>
-	<title>Project metrics · Uploy</title>
+	<title>Project metrics · StageZero</title>
 </svelte:head>
 
 <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card">
 	<div class="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10">
 		<header class="mb-7 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 			<div class="max-w-2xl">
-				<h1 class="text-2xl font-semibold tracking-[-0.02em] text-foreground">
-					Project metrics
-				</h1>
+				<h1 class="text-2xl font-semibold tracking-[-0.02em] text-foreground">Project metrics</h1>
 				<p class="mt-2 text-sm leading-relaxed text-muted-foreground">
 					Live health and resource usage for active deployment containers across every environment.
 				</p>
@@ -721,10 +722,14 @@
 								stroke-width="1"
 							/>
 							{#each markerGroups as group (group.at)}
+								<!-- Both paths resolve, but the lint rule does not inspect conditional hrefs. -->
+								<!-- eslint-disable svelte/no-navigation-without-resolve -->
 								<a
 									href={group.markers.length === 1
-										? `/services/${encodeURIComponent(group.markers[0].service_id)}?deployment=${encodeURIComponent(group.markers[0].deployment_id)}`
-										: `/services/${encodeURIComponent(group.markers[0].service_id)}`}
+										? `${resolve('/(app)/(dashboard)/services/[id]', { id: group.markers[0].service_id })}?deployment=${encodeURIComponent(group.markers[0].deployment_id)}`
+										: resolve('/(app)/(dashboard)/services/[id]', {
+												id: group.markers[0].service_id
+											})}
 									class={markerColor(group)}
 									aria-label={markerTitle(group)}
 								>
@@ -742,6 +747,7 @@
 									/>
 									<title>{markerTitle(group)}</title>
 								</a>
+								<!-- eslint-enable svelte/no-navigation-without-resolve -->
 							{/each}
 							<path
 								d={chartPath(
@@ -925,7 +931,7 @@
 							<div class="flex items-start justify-between gap-3">
 								<div class="min-w-0">
 									<a
-										href="/services/{service.service_id}"
+										href={resolve('/(app)/(dashboard)/services/[id]', { id: service.service_id })}
 										class="block truncate text-sm font-medium text-foreground underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
 										>{service.name}</a
 									>
@@ -981,7 +987,7 @@
 								>
 									<td class="max-w-[300px] px-5 py-3.5">
 										<a
-											href="/services/{service.service_id}"
+											href={resolve('/(app)/(dashboard)/services/[id]', { id: service.service_id })}
 											class="block truncate font-medium text-foreground underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
 											>{service.name}</a
 										>

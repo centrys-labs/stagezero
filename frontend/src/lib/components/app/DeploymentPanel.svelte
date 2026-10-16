@@ -53,7 +53,8 @@
 		easing: quintOut,
 		// Its own width plus the gap it floats off the edge, so it starts fully
 		// clear of the surface it covers; -24px is the height it falls from.
-		css: (_t: number, u: number) => `transform: translate3d(calc(${u} * (100% + 1rem)), ${u * -24}px, 0)`
+		css: (_t: number, u: number) =>
+			`transform: translate3d(calc(${u} * (100% + 1rem)), ${u * -24}px, 0)`
 	});
 </script>
 

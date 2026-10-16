@@ -1,4 +1,4 @@
-module github.com/WahyuS002/uploy/monitoring
+module github.com/centrys-labs/stagezero/monitoring
 
 go 1.25.0
 

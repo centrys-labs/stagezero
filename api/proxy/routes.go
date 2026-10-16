@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	dockerapi "github.com/WahyuS002/uploy/docker"
-	"github.com/WahyuS002/uploy/ssh"
+	dockerapi "github.com/centrys-labs/stagezero/docker"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 var ErrLegacyRouteNotFound = errors.New("legacy route not found")

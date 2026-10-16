@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/WahyuS002/uploy/crypto"
+	"github.com/centrys-labs/stagezero/crypto"
 )
 
 var C Config
@@ -23,7 +23,7 @@ type Config struct {
 
 func Load() error {
 	C = Config{
-		DatabaseURL:        envDefault("DATABASE_URL", "postgres://uploy:password@localhost:5432/uploy"),
+		DatabaseURL:        envDefault("DATABASE_URL", "postgres://stagezero:password@localhost:5432/stagezero"),
 		EncryptionKey:      os.Getenv("ENCRYPTION_KEY"),
 		MonitoringImage:    envDefault("MONITORING_IMAGE", "ghcr.io/wahyus002/uploy-monitor:0.1.0"),
 		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),

@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/WahyuS002/uploy/alerts"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/monitoring"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/alerts"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/monitoring"
+	"github.com/centrys-labs/stagezero/ssh"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -62,7 +62,7 @@ func evaluateAlerts(ctx context.Context, tracker *alerts.Tracker) {
 				continue
 			}
 			sendRuleNotifications(ctx, rule, alerts.Message{
-				Title:     fmt.Sprintf("[uploy] %s - %s", rule.Name, observation.TargetName),
+				Title:     fmt.Sprintf("[StageZero] %s - %s", rule.Name, observation.TargetName),
 				Body:      fmt.Sprintf("Condition %s is active at %.2f (threshold %.2f).", rule.Condition, transition.Value, rule.Threshold),
 				StartedAt: event.StartedAt,
 			})
@@ -75,7 +75,7 @@ func evaluateAlerts(ctx context.Context, tracker *alerts.Tracker) {
 			}
 			duration := resolvedAt.Sub(event.StartedAt)
 			sendRuleNotifications(ctx, rule, alerts.Message{
-				Title:    fmt.Sprintf("[uploy] Recovered - %s", observation.TargetName),
+				Title:    fmt.Sprintf("[StageZero] Recovered - %s", observation.TargetName),
 				Body:     fmt.Sprintf("Condition %s recovered after %s.", rule.Condition, duration.Round(time.Second)),
 				Resolved: true, StartedAt: event.StartedAt, ResolvedAt: resolvedAt,
 			})
@@ -107,7 +107,7 @@ func observeRuleTarget(ctx context.Context, rule db.AlertRule) (alerts.Observati
 }
 
 // monitoringTarget describes how to reach a server's agent: through the SSH
-// connection Uploy already uses for that server, to the loopback port the agent
+// connection StageZero already uses for that server, to the loopback port the agent
 // publishes on.
 func monitoringTarget(server db.ServerWithKey) monitoring.Target {
 	return monitoring.Target{

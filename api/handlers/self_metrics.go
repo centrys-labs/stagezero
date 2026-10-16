@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/respond"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/respond"
+	"github.com/centrys-labs/stagezero/telemetry"
 )
 
 // Healthz reports process liveness without touching dependencies.

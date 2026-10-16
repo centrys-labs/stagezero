@@ -38,6 +38,7 @@ func TestBuildRunCommand(t *testing.T) {
 
 	for _, want := range []string{
 		"sudo -n docker run -d --name uploy-monitor",
+		"--network stagezero",
 		"-p 127.0.0.1:9184:9184",
 		"-v /proc:/host/proc:ro -v /sys:/host/sys:ro -v /:/host:ro",
 		"UPLOY_MONITOR_RETENTION_DAYS=7 -e HOST_PROC=/host/proc -e HOST_SYS=/host/sys -e HOST_ROOT=/host",

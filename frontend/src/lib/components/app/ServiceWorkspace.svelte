@@ -183,7 +183,7 @@
 
 	// What the form cannot change. Container name and server are deliberately not
 	// editable: the container is found by name on one server, so changing either
-	// would leave the running one behind with nothing in Uploy pointing at it —
+	// would leave the running one behind with nothing in StageZero pointing at it —
 	// the same orphan that deleting a service used to create.
 	// Image and the ports are only here for readers who cannot edit: for everyone
 	// else the form below is the live version of the same two facts, and printing
@@ -343,7 +343,7 @@
 	 *
 	 * It replaced a session flag that a refresh erased. Removing a domain leaves
 	 * no row behind to notice, so the panel forgot that the container was still
-	 * answering for a hostname Uploy no longer knew about.
+	 * answering for a hostname StageZero no longer knew about.
 	 *
 	 * Gated on has_deployed: a service that has never run is pending by
 	 * definition, and the empty state below already says to deploy it.
@@ -1254,8 +1254,8 @@
 							</p>
 						{:else if domains.length > 0}
 							<p class="text-[13px] text-muted-foreground">
-								Domain traffic goes through the Uploy proxy — the host port below only applies once
-								every domain is removed.
+								Domain traffic goes through the StageZero proxy — the host port below only applies
+								once every domain is removed.
 							</p>
 						{/if}
 					</div>
@@ -1337,7 +1337,7 @@
 						<div class="min-w-0">
 							<p class="text-[15px] font-medium text-foreground">Delete service</p>
 							<p class="mt-0.5 text-[13px] text-muted-foreground">
-								Removes this service from Uploy and stops its container on the server.
+								Removes this service from StageZero and stops its container on the server.
 							</p>
 						</div>
 						<Button

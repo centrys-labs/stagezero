@@ -27,7 +27,7 @@
 		return value.trim().split('@')[0].split('/').pop()?.split(':')[0]?.toLowerCase() ?? '';
 	}
 
-	// 80 and 443 belong to the Uploy proxy, so an image that listens on either
+	// 80 and 443 belong to the StageZero proxy, so an image that listens on either
 	// has to be published somewhere else. Everything else is reachable on the
 	// number it already answers to.
 	export function defaultHostPort(containerPort: number) {
@@ -163,7 +163,7 @@
 				return;
 			}
 			if (hostPort === 80 || hostPort === 443) {
-				localError = 'Ports 80 and 443 are reserved for the Uploy proxy';
+				localError = 'Ports 80 and 443 are reserved for the StageZero proxy';
 				return;
 			}
 		}

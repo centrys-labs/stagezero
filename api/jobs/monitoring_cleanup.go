@@ -2,12 +2,12 @@ package jobs
 
 import (
 	"context"
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/monitoring"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/monitoring"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 const monitoringCleanupInterval = time.Hour

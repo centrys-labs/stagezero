@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/monitoring"
-	"github.com/WahyuS002/uploy/respond"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/monitoring"
+	"github.com/centrys-labs/stagezero/respond"
 )
 
 func (s *Server) GetServerMetrics(w http.ResponseWriter, r *http.Request, id string) {

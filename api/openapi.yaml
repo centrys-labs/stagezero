@@ -1,8 +1,8 @@
 openapi: "3.0.3"
 info:
-  title: Uploy API
+  title: StageZero API
   version: 0.2.0
-  description: Uploy deployment platform API
+  description: StageZero deployment platform API
 
 paths:
   /healthz:
@@ -1924,7 +1924,7 @@ paths:
         starting with the last 200 lines and then following live. OpenAPI does
         not natively model SSE, so this endpoint is documented for reference only.
 
-        Unlike deployment logs these are not stored by Uploy — Docker holds the
+        Unlike deployment logs these are not stored by StageZero — Docker holds the
         history, so a reconnect re-tails rather than resuming.
 
         **SSE events (not modeled by this schema):**
@@ -3046,7 +3046,7 @@ components:
           minimum: 1
           maximum: 65535
           default: 9184
-          description: Loopback port the agent is published on. Uploy reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
+          description: Loopback port the agent is published on. StageZero reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
         retention_days:
           type: integer
           minimum: 1
@@ -3054,12 +3054,12 @@ components:
           default: 7
         fqdn:
           type: string
-          description: Optional public FQDN. Uploy routes it through Traefik with HTTPS.
+          description: Optional public FQDN. StageZero routes it through Traefik with HTTPS.
         reader_token:
           type: string
           format: password
           minLength: 32
-          description: Read token for external scrapers. Omit it — Uploy generates one on first setup and keeps the existing one afterwards.
+          description: Read token for external scrapers. Omit it — StageZero generates one on first setup and keeps the existing one afterwards.
 
     ServerMonitoringCredentialsResponse:
       type: object
@@ -3273,9 +3273,9 @@ components:
           type: integer
           description: >-
             Host port the service is published on. Omit to keep the service
-            internal — reachable by other services on the uploy network and by
+            internal — reachable by other services on the stagezero network and by
             nothing outside the machine, which is what a database wants. 80 and
-            443 are rejected: they belong to the Uploy proxy. Ignored while the
+            443 are rejected: they belong to the StageZero proxy. Ignored while the
             service has a domain, since that traffic goes through the proxy.
 
     CreateProjectFromImageResponse:
@@ -3353,9 +3353,9 @@ components:
           type: integer
           description: >-
             Host port the service is published on. Omit to keep the service
-            internal — reachable by other services on the uploy network and by
+            internal — reachable by other services on the stagezero network and by
             nothing outside the machine, which is what a database wants. 80 and
-            443 are rejected: they belong to the Uploy proxy. Ignored while the
+            443 are rejected: they belong to the StageZero proxy. Ignored while the
             service has a domain, since that traffic goes through the proxy.
         server_id:
           type: string
@@ -3389,9 +3389,9 @@ components:
           type: integer
           description: >-
             Host port the service is published on. Omit to keep the service
-            internal — reachable by other services on the uploy network and by
+            internal — reachable by other services on the stagezero network and by
             nothing outside the machine, which is what a database wants. 80 and
-            443 are rejected: they belong to the Uploy proxy. Ignored while the
+            443 are rejected: they belong to the StageZero proxy. Ignored while the
             service has a domain, since that traffic goes through the proxy.
         server_id:
           type: string
@@ -3428,9 +3428,9 @@ components:
           type: integer
           description: >-
             Host port the service is published on. Omit to keep the service
-            internal — reachable by other services on the uploy network and by
+            internal — reachable by other services on the stagezero network and by
             nothing outside the machine, which is what a database wants. 80 and
-            443 are rejected: they belong to the Uploy proxy. Ignored while the
+            443 are rejected: they belong to the StageZero proxy. Ignored while the
             service has a domain, since that traffic goes through the proxy.
         server_id:
           type: string
@@ -3458,7 +3458,7 @@ components:
             what the service says it is.
 
             A service with nothing to compare against — never deployed, or last
-            deployed before Uploy recorded configurations — reports 1. It is
+            deployed before StageZero recorded configurations — reports 1. It is
             pending, but there is no itemised answer to give.
 
             Derived per request, never stored.
@@ -3688,7 +3688,7 @@ components:
           type: string
           description: >-
             monitoring_disabled means the deployment server runs no monitoring agent, so
-            Uploy has no metrics for it. It is a setup state, not a failure.
+            StageZero has no metrics for it. It is a setup state, not a failure.
           enum:
             - not_deployed
             - running
@@ -3784,7 +3784,7 @@ components:
           type: boolean
           description: >
             False when there is no deployed configuration to compare against:
-            the service has never deployed, or last deployed before Uploy
+            the service has never deployed, or last deployed before StageZero
             recorded configurations. The service is pending either way, but
             changes is empty because no itemised answer exists — say so rather
             than showing an empty list under a badge that says otherwise.

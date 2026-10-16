@@ -59,7 +59,7 @@ func TestBuildDockerRunCmdAddsDeploymentOwnershipLabels(t *testing.T) {
 		ContainerPort: 80,
 		Domains:       []string{"example.com"},
 	})
-	for _, label := range []string{"--label uploy.service_id=service-1", "--label uploy.deployment_id=deployment-1"} {
+	for _, label := range []string{"--label stagezero.service_id=service-1", "--label stagezero.deployment_id=deployment-1", "--label uploy.deployment_id=deployment-1"} {
 		if !strings.Contains(cmd, label) {
 			t.Errorf("missing ownership label %q: %s", label, cmd)
 		}
@@ -107,7 +107,7 @@ func TestBuildDockerRunCmdKeepsUnpublishedServiceInternal(t *testing.T) {
 	if strings.Contains(internal, "-p ") {
 		t.Errorf("unpublished service was published to the host: %s", internal)
 	}
-	if !strings.Contains(internal, "--network uploy") {
+	if !strings.Contains(internal, "--network stagezero") {
 		t.Errorf("unpublished service is not on the shared network, so nothing can reach it: %s", internal)
 	}
 }
@@ -124,7 +124,7 @@ func TestBuildDockerRunCmdAlwaysJoinsNetwork(t *testing.T) {
 		{"internal", DeployConfig{ContainerName: "c", Image: "postgres:16", ContainerPort: 5432}},
 	} {
 		cmd := buildDockerRunCmd("docker", tc.cfg)
-		if !strings.Contains(cmd, "--network uploy") {
+		if !strings.Contains(cmd, "--network stagezero") {
 			t.Errorf("%s is not on the shared network: %s", tc.name, cmd)
 		}
 	}

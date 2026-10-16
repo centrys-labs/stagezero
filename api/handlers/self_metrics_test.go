@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/handlers"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/handlers"
 )
 
 func TestHealthzIsLiveWithoutDatabase(t *testing.T) {

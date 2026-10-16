@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WahyuS002/uploy/telemetry"
+	"github.com/centrys-labs/stagezero/telemetry"
 	gossh "golang.org/x/crypto/ssh"
 )
 

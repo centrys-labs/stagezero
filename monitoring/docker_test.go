@@ -76,8 +76,8 @@ func TestCollectDockerSamplesUsesStructuredStats(t *testing.T) {
 	now := time.Date(2026, time.August, 18, 12, 0, 15, 0, time.UTC)
 	fake := &fakeDockerAPI{
 		containers: []dockerContainer{
-			{ID: "running-id", Names: []string{"/api"}, State: "running", Labels: map[string]string{"uploy.deployment_id": "deployment-a"}},
-			{ID: "stopped-id", Names: []string{"worker"}, State: "exited", Labels: map[string]string{"uploy.deployment_id": "deployment-b"}},
+			{ID: "running-id", Names: []string{"/api"}, State: "running", Labels: map[string]string{"stagezero.deployment_id": "deployment-a"}},
+			{ID: "stopped-id", Names: []string{"worker"}, State: "exited", Labels: map[string]string{"stagezero.deployment_id": "deployment-b"}},
 			{ID: "ignored-id", State: "running", Labels: map[string]string{"other": "value"}},
 		},
 		inspections: map[string]dockerInspect{"running-id": {State: struct {
@@ -140,7 +140,7 @@ func TestCollectDockerSamplesBoundsConcurrency(t *testing.T) {
 	fake := &fakeDockerAPI{inspections: make(map[string]dockerInspect), stats: make(map[string]dockerStats), delay: 10 * time.Millisecond}
 	for index := 0; index < dockerRequestConcurrency+2; index++ {
 		id := string(rune('a' + index))
-		fake.containers = append(fake.containers, dockerContainer{ID: id, State: "running", Labels: map[string]string{"uploy.deployment_id": id}})
+		fake.containers = append(fake.containers, dockerContainer{ID: id, State: "running", Labels: map[string]string{"stagezero.deployment_id": id}})
 		fake.stats[id] = testDockerStats(now, 100, 200, 0, 0, 100, 0, 1_000, 1, 1)
 	}
 	if _, err := collectDockerSamples(context.Background(), fake, newDockerMetricTracker(), now); err != nil {
@@ -194,10 +194,10 @@ func TestDockerClientUsesVersionedHTTPAPI(t *testing.T) {
 				return newResponse(http.StatusBadRequest, "missing all"), nil
 			}
 			var filters map[string][]string
-			if err := json.Unmarshal([]byte(request.URL.Query().Get("filters")), &filters); err != nil || len(filters["label"]) != 1 || filters["label"][0] != "uploy.deployment_id" {
+			if err := json.Unmarshal([]byte(request.URL.Query().Get("filters")), &filters); err != nil || len(filters["label"]) != 1 || filters["label"][0] != "stagezero.deployment_id" {
 				return newResponse(http.StatusBadRequest, "missing label filter"), nil
 			}
-			return newResponse(http.StatusOK, `[{"Id":"id","Names":["/api"],"State":"running","Labels":{"uploy.deployment_id":"deployment"}}]`), nil
+			return newResponse(http.StatusOK, `[{"Id":"id","Names":["/api"],"State":"running","Labels":{"stagezero.deployment_id":"deployment"}}]`), nil
 		case "/v1.44/containers/id/json":
 			return newResponse(http.StatusOK, `{}`), nil
 		case "/v1.44/containers/id/stats":

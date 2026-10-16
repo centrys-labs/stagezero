@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/config"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/monitoring"
-	"github.com/WahyuS002/uploy/respond"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/config"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/monitoring"
+	"github.com/centrys-labs/stagezero/respond"
+	"github.com/centrys-labs/stagezero/ssh"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -334,7 +334,7 @@ func monitoringClient(server db.ServerWithKey) (*ssh.Client, error) {
 }
 
 // monitoringTarget describes how to reach a server's agent: through the SSH
-// connection Uploy already uses for that server, to the loopback port the agent
+// connection StageZero already uses for that server, to the loopback port the agent
 // publishes on.
 func monitoringTarget(server db.ServerWithKey) monitoring.Target {
 	return monitoring.Target{
