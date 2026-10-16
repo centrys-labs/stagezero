@@ -4,13 +4,16 @@ package source
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -19,6 +22,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -30,16 +34,123 @@ var (
 	ErrBranchNotFound    = errors.New("branch not found")
 	ErrRemoteUnavailable = errors.New("remote repository unavailable")
 	ErrRepoNotFound      = errors.New("repository does not exist or is not public")
-	ErrSourceTooLarge    = errors.New("repository tarball exceeds 500 MB")
+	ErrSourceTooLarge    = errors.New("repository exceeds the configured size or entry limit")
+	ErrOutputTooLarge    = errors.New("analysis output exceeds the configured size limit")
 	ErrUnsupportedSource = errors.New("Railpack could not determine how to build this repository")
 
 	gitBinary            = "git"
 	railpackBinary       = "railpack"
 	codeloadBaseURL      = "https://codeload.github.com"
-	httpClient           = http.DefaultClient
+	httpClient           = newSourceHTTPClient(&http.Transport{Proxy: nil, DialContext: publicDial})
 	githubSegmentPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 	commitPattern        = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
 )
+
+func newSourceHTTPClient(transport http.RoundTripper) *http.Client {
+	return &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+}
+
+// Reject non-public DNS answers and connect to the checked IP, not the name,
+// so a DNS rebinding between validation and dial cannot reach local services.
+func publicDial(ctx context.Context, _, address string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || host != "codeload.github.com" || port != "443" {
+		return nil, ErrRemoteUnavailable
+	}
+	addrs, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return nil, err
+	}
+	for _, ip := range addrs {
+		if publicIP(ip) {
+			return (&net.Dialer{Timeout: 5 * time.Second}).DialContext(ctx, "tcp", net.JoinHostPort(ip.String(), port))
+		}
+	}
+	return nil, fmt.Errorf("%w: GitHub resolved to a non-public address", ErrRemoteUnavailable)
+}
+
+func publicIP(ip netip.Addr) bool {
+	ip = ip.Unmap()
+	if !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
+		return false
+	}
+	if ip.Is4() {
+		for _, block := range []string{"0.0.0.0/8", "100.64.0.0/10", "169.254.0.0/16", "192.0.0.0/24", "192.0.2.0/24", "198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "224.0.0.0/4", "240.0.0.0/4"} {
+			if netip.MustParsePrefix(block).Contains(ip) {
+				return false
+			}
+		}
+		return true
+	}
+	return netip.MustParsePrefix("2000::/3").Contains(ip) && !netip.MustParsePrefix("2001:db8::/32").Contains(ip)
+}
+
+type contextReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (r *contextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.r.Read(p)
+}
+
+func protectedCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return killCommandGroup(cmd) }
+	cmd.WaitDelay = time.Second
+	return cmd
+}
+
+func killCommandGroup(cmd *exec.Cmd) error {
+	if cmd.Process == nil {
+		return nil
+	}
+	err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	if errors.Is(err, syscall.ESRCH) {
+		return nil
+	}
+	return err
+}
+
+type boundedOutput struct {
+	mu       sync.Mutex
+	buf      bytes.Buffer
+	limit    int64
+	cmd      *exec.Cmd
+	exceeded bool
+}
+
+func (w *boundedOutput) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.exceeded {
+		return len(p), nil
+	}
+	remaining := w.limit - int64(w.buf.Len())
+	if int64(len(p)) > remaining {
+		w.buf.Write(p[:int(remaining)])
+		w.exceeded = true
+		_ = killCommandGroup(w.cmd)
+	} else {
+		w.buf.Write(p)
+	}
+	return len(p), nil
+}
+
+func runProtectedCommand(cmd *exec.Cmd, limit int64) ([]byte, error) {
+	output := &boundedOutput{limit: limit, cmd: cmd}
+	cmd.Stdout, cmd.Stderr = output, output
+	err := cmd.Run()
+	_ = killCommandGroup(cmd)
+	if output.exceeded {
+		return nil, ErrOutputTooLarge
+	}
+	return output.buf.Bytes(), err
+}
 
 type Repo struct {
 	Owner  string
@@ -72,19 +183,23 @@ type Analyzer interface {
 	Analyze(ctx context.Context, repo Repo) (Analysis, error)
 }
 
-type DefaultAnalyzer struct{}
+type DefaultAnalyzer struct{ Limits AnalysisLimits }
 
-func (DefaultAnalyzer) Analyze(ctx context.Context, repo Repo) (Analysis, error) {
+func (a DefaultAnalyzer) Analyze(ctx context.Context, repo Repo) (Analysis, error) {
 	sha, err := ResolveSHA(ctx, repo)
 	if err != nil {
 		return Analysis{}, err
 	}
-	dir, cleanup, err := Fetch(ctx, repo, sha)
+	limits := a.Limits
+	if limits.TarballBytes == 0 {
+		limits = DefaultAnalysisLimits()
+	}
+	dir, cleanup, err := FetchWithLimits(ctx, repo, sha, limits)
 	if err != nil {
 		return Analysis{}, err
 	}
 	defer cleanup()
-	plan, info, err := Prepare(ctx, dir, nil)
+	plan, info, err := PrepareWithOutputLimit(ctx, dir, nil, limits.OutputBytes)
 	if err != nil {
 		return Analysis{}, err
 	}
@@ -168,13 +283,16 @@ func ResolveSHA(ctx context.Context, r Repo) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cmd := exec.CommandContext(ctx, gitBinary, "ls-remote", r.cloneURL(), "refs/heads/"+branch)
+	cmd := protectedCommand(ctx, gitBinary, "-c", "http.followRedirects=false", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "credential.helper=", "ls-remote", r.cloneURL(), "refs/heads/"+branch)
 	// Without this git answers a missing or private repository by asking for a
 	// username, which either stalls behind a credential helper or fails with a
 	// message about authentication that says nothing about the actual problem.
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
-	out, err := cmd.CombinedOutput()
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_COUNT=0")
+	out, err := runProtectedCommand(cmd, DefaultAnalysisLimits().OutputBytes)
 	if err != nil {
+		if errors.Is(err, ErrOutputTooLarge) {
+			return "", err
+		}
 		// GitHub answers a missing repository and a private one the same way --
 		// by asking to authenticate -- because telling them apart would leak
 		// which private repositories exist. With prompts disabled that surfaces
@@ -256,6 +374,14 @@ func ResolveSHACached(ctx context.Context, r Repo) (string, error) {
 // Fetch downloads and safely extracts the SHA-addressed GitHub tarball. The
 // returned cleanup function removes the complete temporary tree.
 func Fetch(ctx context.Context, r Repo, sha string) (dir string, cleanup func(), err error) {
+	limits := DefaultAnalysisLimits()
+	limits.TarballBytes = MaxTarballSize
+	limits.ExtractedBytes = int64(^uint64(0) >> 1)
+	limits.Entries = int(^uint(0) >> 1)
+	return FetchWithLimits(ctx, r, sha, limits)
+}
+
+func FetchWithLimits(ctx context.Context, r Repo, sha string, limits AnalysisLimits) (dir string, cleanup func(), err error) {
 	if !commitPattern.MatchString(sha) {
 		return "", nil, fmt.Errorf("invalid commit SHA")
 	}
@@ -276,11 +402,15 @@ func Fetch(ctx context.Context, r Repo, sha string) (dir string, cleanup func(),
 		return "", nil, fmt.Errorf("%w: %v", ErrRemoteUnavailable, err)
 	}
 	defer resp.Body.Close()
+	if resp.Request == nil || resp.Request.URL.String() != req.URL.String() {
+		removeRoot()
+		return "", nil, fmt.Errorf("%w: repository download redirected", ErrRemoteUnavailable)
+	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		removeRoot()
 		return "", nil, fmt.Errorf("%w: codeload returned HTTP %d", ErrRemoteUnavailable, resp.StatusCode)
 	}
-	if resp.ContentLength > MaxTarballSize {
+	if resp.ContentLength > limits.TarballBytes {
 		removeRoot()
 		return "", nil, ErrSourceTooLarge
 	}
@@ -291,7 +421,7 @@ func Fetch(ctx context.Context, r Repo, sha string) (dir string, cleanup func(),
 		removeRoot()
 		return "", nil, err
 	}
-	n, copyErr := io.Copy(f, io.LimitReader(resp.Body, MaxTarballSize+1))
+	n, copyErr := io.Copy(f, io.LimitReader(resp.Body, limits.TarballBytes+1))
 	closeErr := f.Close()
 	if copyErr != nil {
 		removeRoot()
@@ -301,12 +431,12 @@ func Fetch(ctx context.Context, r Repo, sha string) (dir string, cleanup func(),
 		removeRoot()
 		return "", nil, closeErr
 	}
-	if n > MaxTarballSize {
+	if n > limits.TarballBytes {
 		removeRoot()
 		return "", nil, ErrSourceTooLarge
 	}
 
-	if err := extractTarball(tarPath, root); err != nil {
+	if err := extractTarball(ctx, tarPath, root, limits); err != nil {
 		removeRoot()
 		return "", nil, err
 	}
@@ -319,7 +449,7 @@ func Fetch(ctx context.Context, r Repo, sha string) (dir string, cleanup func(),
 	return expected, removeRoot, nil
 }
 
-func extractTarball(tarPath, root string) error {
+func extractTarball(ctx context.Context, tarPath, root string, limits AnalysisLimits) error {
 	f, err := os.Open(tarPath)
 	if err != nil {
 		return err
@@ -330,14 +460,28 @@ func extractTarball(tarPath, root string) error {
 		return fmt.Errorf("invalid repository tarball: %w", err)
 	}
 	defer gz.Close()
-	tr := tar.NewReader(gz)
+	tr := tar.NewReader(&contextReader{ctx: ctx, r: gz})
+	var bytes, entries int64
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		hdr, err := tr.Next()
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
 		if err != nil {
 			return fmt.Errorf("invalid repository tarball: %w", err)
+		}
+		entries++
+		if entries > int64(limits.Entries) {
+			return ErrSourceTooLarge
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			if hdr.Size < 0 || hdr.Size > limits.ExtractedBytes-bytes {
+				return ErrSourceTooLarge
+			}
+			bytes += hdr.Size
 		}
 		name := filepath.Clean(filepath.FromSlash(hdr.Name))
 		if name == "." || filepath.IsAbs(name) || name == ".." || strings.HasPrefix(name, ".."+string(filepath.Separator)) {
@@ -368,7 +512,7 @@ func extractTarball(tarPath, root string) error {
 			if err != nil {
 				return err
 			}
-			_, copyErr := io.Copy(out, tr)
+			_, copyErr := io.Copy(out, &contextReader{ctx: ctx, r: tr})
 			closeErr := out.Close()
 			if copyErr != nil {
 				return copyErr
@@ -442,25 +586,29 @@ func within(root, path string) bool {
 // Prepare runs Railpack's analysis phase and parses only the fields used by
 // the API. The raw plan is retained verbatim for the later build phase.
 func Prepare(ctx context.Context, dir string, env map[string]string) (Plan, Info, error) {
+	return PrepareWithOutputLimit(ctx, dir, env, DefaultAnalysisLimits().OutputBytes)
+}
+
+func PrepareWithOutputLimit(ctx context.Context, dir string, env map[string]string, outputLimit int64) (Plan, Info, error) {
 	planFile, err := os.CreateTemp("", "stagezero-plan-*.json")
 	if err != nil {
 		return Plan{}, Info{}, err
 	}
 	planPath := planFile.Name()
+	defer os.Remove(planPath)
 	if err := planFile.Close(); err != nil {
 		return Plan{}, Info{}, err
 	}
-	defer os.Remove(planPath)
 
 	infoFile, err := os.CreateTemp("", "stagezero-info-*.json")
 	if err != nil {
 		return Plan{}, Info{}, err
 	}
 	infoPath := infoFile.Name()
+	defer os.Remove(infoPath)
 	if err := infoFile.Close(); err != nil {
 		return Plan{}, Info{}, err
 	}
-	defer os.Remove(infoPath)
 
 	args := []string{"prepare", dir, "--plan-out", planPath, "--info-out", infoPath, "--hide-pretty-plan"}
 	keys := make([]string, 0, len(env))
@@ -474,20 +622,23 @@ func Prepare(ctx context.Context, dir string, env map[string]string) (Plan, Info
 		}
 		args = append(args, "--env", key+"="+env[key])
 	}
-	cmd := exec.CommandContext(ctx, railpackBinary, args...)
-	out, err := cmd.CombinedOutput()
+	cmd := protectedCommand(ctx, railpackBinary, args...)
+	out, err := runProtectedCommand(cmd, outputLimit)
 	if err != nil {
+		if errors.Is(err, ErrOutputTooLarge) {
+			return Plan{}, Info{}, err
+		}
 		return Plan{}, Info{}, &commandError{name: "railpack prepare", output: string(out), err: err}
 	}
 
-	rawPlan, err := os.ReadFile(planPath)
+	rawPlan, err := readBoundedFile(planPath, outputLimit)
 	if err != nil {
 		return Plan{}, Info{}, fmt.Errorf("read railpack plan: %w", err)
 	}
 	if !json.Valid(rawPlan) {
 		return Plan{}, Info{}, fmt.Errorf("railpack produced invalid plan JSON")
 	}
-	rawInfo, err := os.ReadFile(infoPath)
+	rawInfo, err := readBoundedFile(infoPath, outputLimit)
 	if err != nil {
 		return Plan{}, Info{}, fmt.Errorf("read railpack info: %w", err)
 	}
@@ -496,6 +647,22 @@ func Prepare(ctx context.Context, dir string, env map[string]string) (Plan, Info
 		return Plan{}, Info{}, err
 	}
 	return Plan{Raw: json.RawMessage(rawPlan)}, info, nil
+}
+
+func readBoundedFile(path string, limit int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, ErrOutputTooLarge
+	}
+	return data, nil
 }
 
 func parseInfo(rawInfo, rawPlan []byte) (Info, error) {

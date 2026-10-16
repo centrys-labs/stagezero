@@ -38,7 +38,7 @@ func main() {
 		db.Close()
 	}()
 
-	s := &handlers.Server{}
+	s := &handlers.Server{SourceLimits: config.C.SourceAnalysis}
 
 	mux := http.NewServeMux()
 

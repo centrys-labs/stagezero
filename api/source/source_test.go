@@ -7,13 +7,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestParseRepoURL(t *testing.T) {
@@ -52,6 +57,9 @@ func TestParseRepoURL(t *testing.T) {
 		"owner/name/extra",
 		"github.com/owner/name%2Fother",
 		"https://github.com/-bad/name",
+		"https://github.com@127.0.0.1/owner/name",
+		"https://github.com:443/owner/name",
+		"https://127.0.0.1/owner/name",
 	} {
 		t.Run("reject "+raw, func(t *testing.T) {
 			if _, err := ParseRepoURL(raw); !errors.Is(err, ErrInvalidRepoURL) {
@@ -106,6 +114,218 @@ func TestFetchRejectsOversizedTarball(t *testing.T) {
 	_, _, err := Fetch(context.Background(), Repo{Owner: "owner", Name: "demo"}, strings.Repeat("a", 40))
 	if !errors.Is(err, ErrSourceTooLarge) {
 		t.Fatalf("Fetch() error = %v, want ErrSourceTooLarge", err)
+	}
+}
+
+func TestFetchRejectsDownloadOverLimitWithoutContentLengthAndCleans(t *testing.T) {
+	sha := strings.Repeat("a", 40)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.(http.Flusher).Flush()
+		_, _ = w.Write(bytes.Repeat([]byte("z"), 200))
+	}))
+	defer server.Close()
+	oldBase, oldClient := codeloadBaseURL, httpClient
+	codeloadBaseURL, httpClient = server.URL, server.Client()
+	t.Cleanup(func() { codeloadBaseURL, httpClient = oldBase, oldClient })
+	t.Setenv("TMPDIR", t.TempDir())
+	limits := DefaultAnalysisLimits()
+	limits.TarballBytes = 100
+	_, _, err := FetchWithLimits(context.Background(), Repo{Owner: "owner", Name: "demo"}, sha, limits)
+	if !errors.Is(err, ErrSourceTooLarge) {
+		t.Fatalf("error = %v", err)
+	}
+	files, err := os.ReadDir(os.Getenv("TMPDIR"))
+	if err != nil || len(files) != 0 {
+		t.Fatalf("temporary files = %v, error = %v", files, err)
+	}
+}
+
+func TestFetchRejectsRedirectToInternalService(t *testing.T) {
+	var internalHits int
+	internal := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { internalHits++ }))
+	defer internal.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Redirect(w, &http.Request{}, internal.URL+"/secrets", http.StatusFound)
+	}))
+	defer server.Close()
+	oldBase, oldClient := codeloadBaseURL, httpClient
+	codeloadBaseURL, httpClient = server.URL, newSourceHTTPClient(server.Client().Transport)
+	t.Cleanup(func() { codeloadBaseURL, httpClient = oldBase, oldClient })
+	_, _, err := FetchWithLimits(context.Background(), Repo{Owner: "owner", Name: "demo"}, strings.Repeat("a", 40), DefaultAnalysisLimits())
+	if !errors.Is(err, ErrRemoteUnavailable) || internalHits != 0 {
+		t.Fatalf("redirect: error = %v, internal hits = %d", err, internalHits)
+	}
+}
+
+func TestPublicIPRejectsPrivateAndSpecialAddresses(t *testing.T) {
+	for _, ip := range []string{"127.0.0.1", "10.2.3.4", "169.254.169.254", "100.64.0.1", "[::1]", "fc00::1", "::ffff:127.0.0.1", "2001:db8::1"} {
+		ip = strings.Trim(ip, "[]")
+		if publicIP(netip.MustParseAddr(ip)) {
+			t.Errorf("accepted %s", ip)
+		}
+	}
+	if !publicIP(netip.MustParseAddr("8.8.8.8")) {
+		t.Error("rejected public address")
+	}
+}
+
+func TestExtractTarballLimitsAndCancellation(t *testing.T) {
+	root := t.TempDir()
+	data := tarWith(t, []entry{{name: "repo/a", typeflag: tar.TypeReg, body: "long body"}, {name: "repo/b", typeflag: tar.TypeReg, body: "more"}})
+	path := writeTar(t, root, data)
+	for _, modify := range []func(*AnalysisLimits){
+		func(l *AnalysisLimits) { l.ExtractedBytes = 4 },
+		func(l *AnalysisLimits) { l.Entries = 1 },
+	} {
+		limits := DefaultAnalysisLimits()
+		modify(&limits)
+		if err := extractTarball(context.Background(), path, root, limits); !errors.Is(err, ErrSourceTooLarge) {
+			t.Fatalf("limit error = %v", err)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := extractTarball(ctx, path, root, DefaultAnalysisLimits()); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancellation error = %v", err)
+	}
+}
+
+func TestFetchExtractionFailureAndCancellationCleanTemp(t *testing.T) {
+	sha := strings.Repeat("a", 40)
+	data := tarGzip(t, "demo-"+sha+"/large.txt", bytes.Repeat([]byte("a"), 100))
+	var blocked atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if blocked.Load() {
+			<-r.Context().Done()
+			return
+		}
+		_, _ = w.Write(data)
+	}))
+	defer server.Close()
+	oldBase, oldClient := codeloadBaseURL, httpClient
+	codeloadBaseURL, httpClient = server.URL, server.Client()
+	t.Cleanup(func() { codeloadBaseURL, httpClient = oldBase, oldClient })
+	t.Setenv("TMPDIR", t.TempDir())
+	limits := DefaultAnalysisLimits()
+	limits.ExtractedBytes = 10
+	_, _, err := FetchWithLimits(context.Background(), Repo{Owner: "owner", Name: "demo"}, sha, limits)
+	if !errors.Is(err, ErrSourceTooLarge) {
+		t.Fatalf("extraction error = %v", err)
+	}
+	// The download blocks until the request context expires; its scratch tree
+	// must disappear even when no response body is received.
+	blocked.Store(true)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	_, _, err = FetchWithLimits(ctx, Repo{Owner: "owner", Name: "demo"}, sha, limits)
+	if !errors.Is(err, ErrRemoteUnavailable) {
+		t.Fatalf("cancelled fetch error = %v", err)
+	}
+	files, err := os.ReadDir(os.Getenv("TMPDIR"))
+	if err != nil || len(files) != 0 {
+		t.Fatalf("temporary files = %v, error = %v", files, err)
+	}
+}
+
+func TestProtectedCommandCancelsProcessTree(t *testing.T) {
+	if _, err := os.Stat("/proc"); err != nil {
+		t.Skip("requires Linux process inspection")
+	}
+	dir := t.TempDir()
+	childPath := filepath.Join(dir, "child.pid")
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	cmd := protectedCommand(ctx, "sh", "-c", "sleep 30 & echo $! > '"+childPath+"'; wait")
+	_, _ = cmd.CombinedOutput()
+	killCommandGroup(cmd)
+	data, err := os.ReadFile(childPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		stat, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+		if errors.Is(err, os.ErrNotExist) || (err == nil && strings.Contains(string(stat), ") Z ")) {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := syscall.Kill(pid, 0); err == nil {
+		t.Fatalf("child %d still running after cancellation", pid)
+	}
+}
+
+func TestPrepareBoundsOutputAndCleansTemp(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("TMPDIR", t.TempDir())
+	stub := filepath.Join(dir, "fake-railpack")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\nwhile :; do printf 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'; done\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	oldBinary := railpackBinary
+	railpackBinary = stub
+	t.Cleanup(func() { railpackBinary = oldBinary })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, _, err := PrepareWithOutputLimit(ctx, dir, nil, 512)
+	if !errors.Is(err, ErrOutputTooLarge) {
+		t.Fatalf("output error = %v", err)
+	}
+	files, err := os.ReadDir(os.Getenv("TMPDIR"))
+	if err != nil || len(files) != 0 {
+		t.Fatalf("temporary files = %v, error = %v", files, err)
+	}
+}
+
+func TestPrepareRejectsLargePlan(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "fake-railpack")
+	script := `#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --plan-out) plan="$2"; shift 2 ;;
+    --info-out) info="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+printf '%1024s' x > "$plan"
+printf '{}' > "$info"
+`
+	if err := os.WriteFile(stub, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	oldBinary := railpackBinary
+	railpackBinary = stub
+	t.Cleanup(func() { railpackBinary = oldBinary })
+	_, _, err := PrepareWithOutputLimit(context.Background(), dir, nil, 512)
+	if !errors.Is(err, ErrOutputTooLarge) {
+		t.Fatalf("plan error = %v", err)
+	}
+}
+
+func TestPrepareCancellationCleansTemp(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("TMPDIR", t.TempDir())
+	stub := filepath.Join(dir, "fake-railpack")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\nsleep 30 & wait\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	oldBinary := railpackBinary
+	railpackBinary = stub
+	t.Cleanup(func() { railpackBinary = oldBinary })
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, _, err := Prepare(ctx, dir, nil)
+	if err == nil {
+		t.Fatal("canceled analysis succeeded")
+	}
+	files, err := os.ReadDir(os.Getenv("TMPDIR"))
+	if err != nil || len(files) != 0 {
+		t.Fatalf("temporary files = %v, error = %v", files, err)
 	}
 }
 
@@ -244,7 +464,7 @@ func TestExtractTarballKeepsInTreeSymlinks(t *testing.T) {
 		{name: "repo/nested/", typeflag: tar.TypeDir},
 		{name: "repo/nested/up.txt", typeflag: tar.TypeSymlink, linkname: "../real.txt"},
 	})
-	if err := extractTarball(writeTar(t, root, data), root); err != nil {
+	if err := extractTarball(context.Background(), writeTar(t, root, data), root, DefaultAnalysisLimits()); err != nil {
 		t.Fatalf("extractTarball() error = %v, want nil", err)
 	}
 	for _, name := range []string{"repo/link.txt", "repo/nested/up.txt"} {
@@ -273,7 +493,7 @@ func TestExtractTarballDropsEscapingLinks(t *testing.T) {
 		{name: "repo/absolute", typeflag: tar.TypeSymlink, linkname: "/etc/passwd"},
 		{name: "repo/hardescape", typeflag: tar.TypeLink, linkname: "../../../../etc/passwd"},
 	})
-	if err := extractTarball(writeTar(t, root, data), root); err != nil {
+	if err := extractTarball(context.Background(), writeTar(t, root, data), root, DefaultAnalysisLimits()); err != nil {
 		t.Fatalf("extractTarball() error = %v, want nil", err)
 	}
 	for _, name := range []string{"repo/escape", "repo/absolute", "repo/hardescape"} {
@@ -299,7 +519,7 @@ func TestExtractTarballDoesNotWriteThroughPlantedLink(t *testing.T) {
 		{name: "repo/hole", typeflag: tar.TypeSymlink, linkname: outside},
 		{name: "repo/hole", typeflag: tar.TypeReg, body: "overwritten"},
 	})
-	if err := extractTarball(writeTar(t, root, data), root); err != nil {
+	if err := extractTarball(context.Background(), writeTar(t, root, data), root, DefaultAnalysisLimits()); err != nil {
 		t.Fatalf("extractTarball() error = %v, want nil", err)
 	}
 	body, err := os.ReadFile(outside)

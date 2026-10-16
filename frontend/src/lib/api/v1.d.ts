@@ -1185,8 +1185,26 @@ export interface operations {
 					'application/json': components['schemas']['ErrorResponse'];
 				};
 			};
+			/** @description Request body exceeds the configured limit */
+			413: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
 			/** @description Railpack could not determine how to build the repository */
 			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Analysis rate or concurrency limit reached */
+			429: {
 				headers: {
 					[name: string]: unknown;
 				};
