@@ -3,6 +3,8 @@ package monitoring
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	dockerapi "github.com/centrys-labs/stagezero/docker"
@@ -25,6 +28,10 @@ const (
 	loopbackAddress      = "127.0.0.1"
 	dataDir              = "/data/uploy/monitoring"
 	enableCleanupTimeout = 30 * time.Second
+
+	// staleEnvDirAfter minutes is when an agent env directory with no process
+	// left to clean it up is pruned by the next operation on that server.
+	staleEnvDirAfter = 60
 )
 
 type Config struct {
@@ -122,7 +129,20 @@ func Enable(ctx context.Context, client *ssh.Client, serverID string, cfg Config
 		return err
 	}
 
-	if out, err := client.Run(ctx, buildRunCommand(docker, cfg)); err != nil {
+	// The tokens reach the container through a 0600 file instead of the docker
+	// command line, so they never appear in the host's process table. The file
+	// is removed on every exit path, including a cancelled request.
+	envDir, err := writeAgentEnvFile(ctx, client, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cleanupErr := removeAgentEnvFile(ctx, client, envDir); cleanupErr != nil {
+			err = errors.Join(err, cleanupErr)
+		}
+	}()
+
+	if out, err := client.Run(ctx, buildRunCommand(docker, cfg, envDir+"/env")); err != nil {
 		if trimmed := strings.TrimSpace(out); trimmed != "" {
 			return fmt.Errorf("start monitoring agent: %s", trimmed)
 		}
@@ -168,16 +188,105 @@ func prepareMonitoringHost(ctx context.Context, client *ssh.Client, cfg Config) 
 // reaches it by tunneling through the server's SSH connection, and a public
 // FQDN reaches it over the stagezero network by container name, so binding the port
 // to a routable address would expose it without anything asking for that.
-func buildRunCommand(docker string, cfg Config) string {
+//
+// The agent's tokens arrive through envFilePath (--env-file) rather than -e
+// KEY=value, because a docker command line is readable by every user on the host.
+func buildRunCommand(docker string, cfg Config, envFilePath string) string {
 	publishedAddress := net.JoinHostPort(loopbackAddress, strconv.Itoa(cfg.HostPort))
 	return fmt.Sprintf(
 		"%s run -d --name %s --restart unless-stopped --network stagezero -p %s:%d "+
 			"-v /var/run/docker.sock:/var/run/docker.sock:ro -v /proc:/host/proc:ro -v /sys:/host/sys:ro -v /:/host:ro -v %s:/data "+
-			"-e UPLOY_MONITOR_CONTROL_TOKEN=%s -e UPLOY_MONITOR_READER_TOKEN=%s "+
+			"--env-file %s "+
 			"-e UPLOY_MONITOR_RETENTION_DAYS=%d -e HOST_PROC=/host/proc -e HOST_SYS=/host/sys -e HOST_ROOT=/host %s",
 		docker, ContainerName, publishedAddress, AgentPort, dataDir,
-		ssh.ShellQuote(cfg.ControlToken), ssh.ShellQuote(cfg.ReaderToken), cfg.RetentionDays, ssh.ShellQuote(cfg.Image),
+		ssh.ShellQuote(envFilePath), cfg.RetentionDays, ssh.ShellQuote(cfg.Image),
 	)
+}
+
+// agentEnvRunner is the part of the SSH client the environment upload needs.
+type agentEnvRunner interface {
+	Run(context.Context, string) (string, error)
+	RunWithInput(context.Context, string, []byte) (string, error)
+}
+
+// agentEnvContent is the agent configuration that must not sit on a command
+// line. Values are single-line by construction; ValidateConfig rejects tokens
+// with line breaks, which would otherwise inject extra environment entries.
+func agentEnvContent(cfg Config) string {
+	return fmt.Sprintf("UPLOY_MONITOR_CONTROL_TOKEN=%s\nUPLOY_MONITOR_READER_TOKEN=%s\n", cfg.ControlToken, cfg.ReaderToken)
+}
+
+var envDirCounter atomic.Uint64
+
+// envDirName keeps concurrent operations, and concurrent replicas of the control
+// plane, on distinct paths so one request's cleanup cannot delete another's file.
+func envDirName() string {
+	var random [8]byte
+	_, err := rand.Read(random[:])
+	suffix := hex.EncodeToString(random[:])
+	if err != nil {
+		suffix = strconv.FormatInt(time.Now().UnixNano(), 16)
+	}
+	return suffix + "-" + strconv.FormatUint(envDirCounter.Add(1), 16)
+}
+
+// agentEnvRoot is kept as shell text rather than a resolved path so it follows
+// whichever user the SSH connection runs as. It deliberately avoids /tmp: that
+// directory is world-writable, so a predictable secret path there could be
+// pre-created or symlinked by another local user on the host.
+const agentEnvRoot = `"$HOME/.stagezero-monitoring"`
+
+// writeAgentEnvFile uploads the agent env file over the SSH session's stdin and
+// returns the 0700 directory holding it. The directory is returned, not the
+// file, so callers remove the whole thing.
+func writeAgentEnvFile(ctx context.Context, client agentEnvRunner, cfg Config) (string, error) {
+	// A connection cut mid-upload leaves a file with no process left to remove
+	// it, so each run also prunes anything old enough to be abandoned.
+	prepare := fmt.Sprintf(
+		"umask 077; mkdir -m 0700 %s 2>/dev/null || true; find %s -mindepth 1 -maxdepth 1 -mmin +%d -exec rm -rf {} + 2>/dev/null; true",
+		agentEnvRoot, agentEnvRoot, staleEnvDirAfter,
+	)
+	if out, err := client.Run(ctx, prepare); err != nil {
+		if trimmed := strings.TrimSpace(out); trimmed != "" {
+			return "", fmt.Errorf("prepare monitoring environment directory: %s", trimmed)
+		}
+		return "", fmt.Errorf("prepare monitoring environment directory: %w", err)
+	}
+
+	// Fail closed when the directory is not ours and not private. A squatted or
+	// world-readable directory means the upload would land somewhere another
+	// local user can reach.
+	verify := fmt.Sprintf(
+		`test "$(stat -c %%a %s)" = 700 && test "$(stat -c %%u %s)" = "$(id -u)"`,
+		agentEnvRoot, agentEnvRoot,
+	)
+	if out, err := client.Run(ctx, verify); err != nil {
+		if trimmed := strings.TrimSpace(out); trimmed != "" {
+			return "", fmt.Errorf("monitoring environment directory is not private: %s", trimmed)
+		}
+		return "", fmt.Errorf("monitoring environment directory is not private: %w", err)
+	}
+
+	dir := agentEnvRoot + "/" + envDirName()
+	upload := fmt.Sprintf("umask 077 && mkdir -m 0700 %s && cat > %s", dir, dir+"/env")
+	if out, err := client.RunWithInput(ctx, upload, []byte(agentEnvContent(cfg))); err != nil {
+		_ = removeAgentEnvFile(ctx, client, dir)
+		if trimmed := strings.TrimSpace(out); trimmed != "" {
+			return "", fmt.Errorf("write monitoring environment file: %s", trimmed)
+		}
+		return "", fmt.Errorf("write monitoring environment file: %w", err)
+	}
+	return dir, nil
+}
+
+// removeAgentEnvFile deletes the uploaded file even when the request that
+// created it has already been cancelled, which is exactly when it is most
+// likely to be left behind.
+func removeAgentEnvFile(parent context.Context, client agentEnvRunner, dir string) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), enableCleanupTimeout)
+	defer cancel()
+	_, err := client.Run(ctx, "rm -rf "+dir)
+	return err
 }
 
 func syncRoute(client *ssh.Client, serverID, fqdn string) error {
@@ -286,6 +395,13 @@ func ValidateConfig(cfg Config) error {
 	}
 	if cfg.ControlToken == "" || cfg.ReaderToken == "" {
 		return errors.New("monitoring control and reader tokens are required")
+	}
+	// The tokens become lines in an environment file, so a line break would let
+	// them define extra variables inside the agent container.
+	for _, token := range []string{cfg.ControlToken, cfg.ReaderToken} {
+		if strings.ContainsAny(token, "\r\n") {
+			return errors.New("monitoring tokens must not contain line breaks")
+		}
 	}
 	return nil
 }
