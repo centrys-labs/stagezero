@@ -333,11 +333,14 @@ func TestPrepareParsesRailpackOutput(t *testing.T) {
 	dir := t.TempDir()
 	planPath := filepath.Join(dir, "fake-railpack")
 	argsPath := filepath.Join(dir, "railpack-args")
+	envPath := filepath.Join(dir, "railpack-env")
 	script := `#!/bin/sh
 plan=""
 info=""
 args_file="` + argsPath + `"
+env_file="` + envPath + `"
 printf '%s\n' "$@" > "$args_file"
+printf 'A=%s\nB=%s\nUNRELATED=%s\n' "$A" "$B" "${GITHUB_CLIENT_SECRET-unset}" > "$env_file"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --plan-out) plan="$2"; shift 2 ;;
@@ -354,6 +357,7 @@ printf '%s' '{"resolvedPackages":{"node":{"resolvedVersion":"22.11.0"}},"metadat
 	oldBinary := railpackBinary
 	railpackBinary = planPath
 	t.Cleanup(func() { railpackBinary = oldBinary })
+	t.Setenv("GITHUB_CLIENT_SECRET", "inherited-api-credential")
 
 	plan, info, err := Prepare(context.Background(), dir, map[string]string{"B": "two", "A": "one"})
 	if err != nil {
@@ -369,8 +373,27 @@ printf '%s' '{"resolvedPackages":{"node":{"resolvedVersion":"22.11.0"}},"metadat
 	if got, want := string(args), "prepare\n"+dir+"\n--plan-out\n"; !strings.HasPrefix(got, want) {
 		t.Fatalf("Prepare() args = %q, want prefix %q", got, want)
 	}
-	if a, b := strings.Index(string(args), "A=one"), strings.Index(string(args), "B=two"); a < 0 || b < 0 || a > b {
-		t.Fatalf("Prepare() did not pass ordered environment values: %q", args)
+	if a, b := strings.Index(string(args), "\nA\n"), strings.Index(string(args), "\nB\n"); a < 0 || b < 0 || a > b || strings.Contains(string(args), "one") || strings.Contains(string(args), "two") {
+		t.Fatalf("Prepare() did not pass ordered environment names without values: %q", args)
+	}
+	childEnv, err := os.ReadFile(envPath)
+	if err != nil || string(childEnv) != "A=one\nB=two\nUNRELATED=unset\n" {
+		t.Fatalf("Prepare() child environment = %q, error = %v", childEnv, err)
+	}
+}
+
+func TestPrepareErrorDoesNotEchoSecrets(t *testing.T) {
+	dir := t.TempDir()
+	stub := filepath.Join(dir, "fake-railpack")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" >&2\necho \"failure: $MY_KEY\" >&2\nexit 1\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	oldBinary := railpackBinary
+	railpackBinary = stub
+	t.Cleanup(func() { railpackBinary = oldBinary })
+	_, _, err := Prepare(context.Background(), dir, map[string]string{"MY_KEY": "private-value"})
+	if err == nil || strings.Contains(err.Error(), "private-value") {
+		t.Fatalf("Prepare() error disclosed a secret: %v", err)
 	}
 }
 

@@ -620,13 +620,29 @@ func PrepareWithOutputLimit(ctx context.Context, dir string, env map[string]stri
 		if !validEnvName(key) {
 			return Plan{}, Info{}, fmt.Errorf("invalid environment variable name %q", key)
 		}
-		args = append(args, "--env", key+"="+env[key])
+		args = append(args, "--env", key)
 	}
 	cmd := protectedCommand(ctx, railpackBinary, args...)
+	// Railpack v0.37 resolves bare --env NAME from its process environment.
+	// Do not pass API credentials through os.Environ or put values on argv.
+	for _, key := range []string{"PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "SSL_CERT_FILE", "SSL_CERT_DIR", "XDG_CACHE_HOME"} {
+		if _, overridden := env[key]; overridden {
+			continue
+		}
+		if value, ok := os.LookupEnv(key); ok {
+			cmd.Env = append(cmd.Env, key+"="+value)
+		}
+	}
+	for _, key := range keys {
+		cmd.Env = append(cmd.Env, key+"="+env[key])
+	}
 	out, err := runProtectedCommand(cmd, outputLimit)
 	if err != nil {
 		if errors.Is(err, ErrOutputTooLarge) {
 			return Plan{}, Info{}, err
+		}
+		if len(keys) > 0 {
+			return Plan{}, Info{}, fmt.Errorf("railpack prepare failed: %w", err)
 		}
 		return Plan{}, Info{}, &commandError{name: "railpack prepare", output: string(out), err: err}
 	}
