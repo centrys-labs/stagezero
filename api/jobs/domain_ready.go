@@ -3,9 +3,9 @@ package jobs
 import (
 	"context"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/proxy"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/proxy"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 // promoteDomainIfCertificateReady marks a domain ready when it both resolves to

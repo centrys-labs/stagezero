@@ -2,7 +2,7 @@
 .env
 
 # Binary
-uploy
+stagezero
 *.exe
 
 # Test

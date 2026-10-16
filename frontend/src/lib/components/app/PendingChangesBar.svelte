@@ -286,12 +286,12 @@
 							{diffsFailed[svc.id] ? 'Could not read what changed.' : 'Reading changes…'}
 						</p>
 					{:else if !diff.has_baseline}
-						<!-- The honest answer, not an empty table. A service Uploy has no
+						<!-- The honest answer, not an empty table. A service StageZero has no
 						     record of is genuinely pending, and showing nothing under a badge
 						     that says otherwise is how a reader learns to distrust the badge. -->
 						<p class="border-t border-border px-3 py-2.5 text-[13px] text-muted-foreground">
 							{svc.has_deployed
-								? 'Uploy has no record of what this service is running. Deploy to bring it in line.'
+								? 'StageZero has no record of what this service is running. Deploy to bring it in line.'
 								: `Deploying creates it from ${svc.image}.`}
 						</p>
 					{:else}

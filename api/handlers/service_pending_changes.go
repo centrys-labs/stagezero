@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/respond"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/respond"
 )
 
 // GetServicePendingChanges itemises the difference between how the service is

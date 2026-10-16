@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/WahyuS002/uploy/config"
+	"github.com/centrys-labs/stagezero/config"
 )
 
 const (

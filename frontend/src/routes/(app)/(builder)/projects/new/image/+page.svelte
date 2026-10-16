@@ -93,7 +93,7 @@
 </script>
 
 <svelte:head>
-	<title>Deploy a Docker image · Uploy</title>
+	<title>Deploy a Docker image · StageZero</title>
 </svelte:head>
 
 <div

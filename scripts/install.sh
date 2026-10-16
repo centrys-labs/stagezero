@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# scripts/install.sh — One-time server bootstrap for Uploy managed proxy.
+# scripts/install.sh — One-time server bootstrap for StageZero managed proxy.
 #
 # Usage:
 #   sudo bash scripts/install.sh
 #
-# This script prepares a server so that the Uploy backend can deploy
+# This script prepares a server so that the StageZero backend can deploy
 # applications with FQDN-based routing via Traefik. It is meant to be
 # run once per server by an operator with root access.
 
@@ -14,8 +14,8 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Defaults
 # ---------------------------------------------------------------------------
-readonly TARGET_USER="uploy"
-readonly PROXY_DIR="/data/uploy/proxy"
+readonly TARGET_USER="stagezero"
+readonly PROXY_DIR="/data/stagezero/proxy"
 DOCKER_DNS=""
 SKIP_DNS_CONFIG=false
 CHECK_ONLY=false
@@ -88,7 +88,7 @@ _RUN_STEP_FAILED=false
 
 _ensure_log_dir() {
     if [[ -z "$LOG_DIR" ]]; then
-        LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/uploy-install.XXXXXX")
+        LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/stagezero-install.XXXXXX")
         # Clean up temp dir on exit — but only when all steps passed
         trap '_cleanup_log_dir' EXIT
     fi
@@ -423,7 +423,7 @@ echo "=== Docker DNS Bootstrap ==="
 #    loopback, not the host's. In other words, loopback addresses in the
 #    127.0.0.0/8 range refer back to the current network namespace itself.
 #
-# Why this matters for Uploy:
+# Why this matters for StageZero:
 # - Many Linux hosts use a local stub resolver on the host, such as
 #   `systemd-resolved` on 127.0.0.53.
 # - Docker's troubleshooting docs explicitly call out loopback resolver
@@ -661,9 +661,9 @@ done
 echo ""
 
 if [[ "$OVERALL_OK" == true ]]; then
-    printf "  ${COLOR_GREEN}Server ready for Uploy managed proxy: YES${COLOR_RESET}\n"
+    printf "  ${COLOR_GREEN}Server ready for StageZero managed proxy: YES${COLOR_RESET}\n"
 else
-    printf "  ${COLOR_RED}Server ready for Uploy managed proxy: NO${COLOR_RESET}\n"
+    printf "  ${COLOR_RED}Server ready for StageZero managed proxy: NO${COLOR_RESET}\n"
 fi
 
 # Manual follow-up reminders

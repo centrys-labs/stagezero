@@ -1,6 +1,6 @@
-# Uploy
+# StageZero
 
-A lightweight self-hosted application deployment platform. Uploy allows you to manage projects, services, environments, servers, SSH keys, and custom domains with automated deployment reconciliations.
+A lightweight self-hosted application deployment platform. StageZero allows you to manage projects, services, environments, servers, SSH keys, and custom domains with automated deployment reconciliations.
 
 ## Features
 
@@ -81,4 +81,4 @@ Open `http://localhost:5173` in your browser.
 
 ## License
 
-Uploy is licensed under the [Apache License 2.0](LICENSE).
+StageZero is licensed under the [Apache License 2.0](LICENSE).

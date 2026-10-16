@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WahyuS002/uploy/broker"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/proxy"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/broker"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/proxy"
+	"github.com/centrys-labs/stagezero/ssh"
 	"github.com/jackc/pgx/v5"
 )
 
-const proxyContainerName = "uploy-proxy"
+const proxyContainerName = "stagezero-proxy"
 
 // TLS foreground polling: check immediately, then retry up to
 // tlsForegroundAttempts−1 more times with tlsRetryInterval pauses
@@ -117,7 +117,7 @@ func RunDeploy(cfg DeployConfig) {
 		return
 	}
 
-	// Every container joins the uploy network, so it has to exist before any of
+	// Every container joins the stagezero network, so it has to exist before any of
 	// them starts — not only when the proxy is being set up.
 	if err := proxy.EnsureNetwork(client); err != nil {
 		failDeploy(cfg.DeploymentID, "Network setup failed: "+err.Error())
@@ -417,12 +417,12 @@ func buildDockerRunCmd(docker string, cfg DeployConfig) string {
 	// Every container joins the shared network, published or not. It is how one
 	// service reaches another by name, and for a service with no host port it is
 	// the only way it can be reached at all.
-	args = fmt.Sprintf("%s run -d --name %s --network uploy", docker, cfg.ContainerName)
+	args = fmt.Sprintf("%s run -d --name %s --network stagezero", docker, cfg.ContainerName)
 	if cfg.ServiceID != "" {
-		args += fmt.Sprintf(" --label uploy.service_id=%s", cfg.ServiceID)
+		args += fmt.Sprintf(" --label stagezero.service_id=%s", cfg.ServiceID)
 	}
 	if cfg.DeploymentID != "" {
-		args += fmt.Sprintf(" --label uploy.deployment_id=%s", cfg.DeploymentID)
+		args += fmt.Sprintf(" --label stagezero.deployment_id=%s", cfg.DeploymentID)
 	}
 
 	if len(cfg.Domains) > 0 {
@@ -440,7 +440,7 @@ func buildDockerRunCmd(docker string, cfg DeployConfig) string {
 		args += fmt.Sprintf(" -p %d:%d", cfg.HostPort, cfg.ContainerPort)
 	}
 	// No domains and no host port means internal only: reachable by other
-	// services on the uploy network, and by nothing outside the machine. That is
+	// services on the stagezero network, and by nothing outside the machine. That is
 	// what a database should be unless someone asks otherwise.
 
 	// Survive server reboots and daemon restarts. Without this a reboot silently

@@ -80,7 +80,7 @@
 </script>
 
 <svelte:head>
-	<title>Servers · Uploy</title>
+	<title>Servers · StageZero</title>
 </svelte:head>
 
 <section class="flex flex-1 flex-col">

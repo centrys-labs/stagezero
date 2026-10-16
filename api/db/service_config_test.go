@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/WahyuS002/uploy/crypto"
+	"github.com/centrys-labs/stagezero/crypto"
 )
 
 const testKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

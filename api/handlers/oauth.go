@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/db"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/db"
 	"github.com/jackc/pgx/v5"
 )
 

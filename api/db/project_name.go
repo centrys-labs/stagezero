@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 )
 
 // projectNameAdjectives and projectNameNouns are curated ASCII, lowercase,

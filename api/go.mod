@@ -1,4 +1,4 @@
-module github.com/WahyuS002/uploy
+module github.com/centrys-labs/stagezero
 
 go 1.25.0
 

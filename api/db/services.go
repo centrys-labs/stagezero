@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/WahyuS002/uploy/crypto"
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/crypto"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 )
 
 type Service struct {
@@ -16,7 +16,7 @@ type Service struct {
 	ContainerName string `json:"container_name"`
 	ContainerPort int32  `json:"container_port"`
 	// HostPort is the port the service is published on, or nil for a service
-	// that is not published at all — reachable by other services on the uploy
+	// that is not published at all — reachable by other services on the stagezero
 	// network, and by nothing outside the machine.
 	HostPort      *int32    `json:"host_port"`
 	ServerID      string    `json:"server_id"`

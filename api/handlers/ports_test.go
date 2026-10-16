@@ -7,7 +7,7 @@ func intPtr(v int) *int { return &v }
 // Two rules, and they are not the same rule. 80 is a fine port for an image to
 // listen on but never a port to publish on, because Traefik owns it. And no host
 // port at all is always valid — it means the service is reachable only by other
-// services on the uploy network, which is what a database should be.
+// services on the stagezero network, which is what a database should be.
 func TestValidatePorts(t *testing.T) {
 	tests := []struct {
 		name     string

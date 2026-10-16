@@ -189,7 +189,7 @@
 </script>
 
 <svelte:head>
-	<title>New project · Uploy</title>
+	<title>New project · StageZero</title>
 </svelte:head>
 
 <div
@@ -305,7 +305,7 @@
 		<DialogHeader class="border-b border-border px-5 pt-4 pr-12 pb-3">
 			<DialogTitle class="text-sm">Connect a server</DialogTitle>
 			<DialogDescription class="text-xs">
-				Add SSH credentials so Uploy can deploy here.
+				Add SSH credentials so StageZero can deploy here.
 			</DialogDescription>
 		</DialogHeader>
 

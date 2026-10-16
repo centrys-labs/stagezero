@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WahyuS002/uploy/config"
+	"github.com/centrys-labs/stagezero/config"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"

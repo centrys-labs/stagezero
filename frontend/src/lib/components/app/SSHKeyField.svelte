@@ -48,7 +48,7 @@
 				</RadioList>
 			{:else}
 				<p class="px-3 py-2.5 text-xs text-muted-foreground">
-					No key in this workspace yet. Uploy needs one to reach the server.
+					No key in this workspace yet. StageZero needs one to reach the server.
 				</p>
 			{/if}
 			<button

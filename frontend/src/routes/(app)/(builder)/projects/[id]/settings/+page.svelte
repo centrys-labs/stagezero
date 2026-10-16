@@ -134,7 +134,7 @@
 </script>
 
 <svelte:head>
-	<title>{project ? `${project.name} settings · Uploy` : 'Project settings · Uploy'}</title>
+	<title>{project ? `${project.name} settings · StageZero` : 'Project settings · StageZero'}</title>
 </svelte:head>
 
 <div class="min-h-0 flex-1 overflow-y-auto rounded-xl border border-border bg-card">
