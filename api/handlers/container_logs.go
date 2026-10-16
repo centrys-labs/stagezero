@@ -6,9 +6,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/respond"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/respond"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 // How much history Docker replays before the stream catches up to live. Enough

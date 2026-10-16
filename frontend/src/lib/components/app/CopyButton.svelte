@@ -29,7 +29,7 @@
 	let copied = $state(false);
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
-	// Uploy is self-hosted and plenty of installs answer on http://<lan-ip>.
+	// StageZero is self-hosted and plenty of installs answer on http://<lan-ip>.
 	// navigator.clipboard does not exist off a secure origin, so the async API on
 	// its own throws on exactly the setups the server wizard is written for. The
 	// deprecated selection path is the only thing that works there.

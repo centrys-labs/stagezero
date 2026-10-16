@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 

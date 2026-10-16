@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/source"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/source"
 )
 
 // The port the image listens on and the port it is published as are two
@@ -65,7 +65,7 @@ func TestBuildDockerRunCmdAddsDeploymentOwnershipLabels(t *testing.T) {
 		ContainerPort: 80,
 		Domains:       []string{"example.com"},
 	})
-	for _, label := range []string{"--label uploy.service_id=service-1", "--label uploy.deployment_id=deployment-1"} {
+	for _, label := range []string{"--label stagezero.service_id=service-1", "--label stagezero.deployment_id=deployment-1"} {
 		if !strings.Contains(cmd, label) {
 			t.Errorf("missing ownership label %q: %s", label, cmd)
 		}
@@ -113,7 +113,7 @@ func TestBuildDockerRunCmdKeepsUnpublishedServiceInternal(t *testing.T) {
 	if strings.Contains(internal, "-p ") {
 		t.Errorf("unpublished service was published to the host: %s", internal)
 	}
-	if !strings.Contains(internal, "--network uploy") {
+	if !strings.Contains(internal, "--network stagezero") {
 		t.Errorf("unpublished service is not on the shared network, so nothing can reach it: %s", internal)
 	}
 }
@@ -130,7 +130,7 @@ func TestBuildDockerRunCmdAlwaysJoinsNetwork(t *testing.T) {
 		{"internal", DeployConfig{ContainerName: "c", Image: "postgres:16", ContainerPort: 5432}},
 	} {
 		cmd := buildDockerRunCmd("docker", tc.cfg)
-		if !strings.Contains(cmd, "--network uploy") {
+		if !strings.Contains(cmd, "--network stagezero") {
 			t.Errorf("%s is not on the shared network: %s", tc.name, cmd)
 		}
 	}
@@ -178,7 +178,7 @@ func TestSourceBuildCommandsUsePinnedPlanAndSHA(t *testing.T) {
 		t.Errorf("plan command did not transfer plan: %s", plan)
 	}
 
-	buildCmd, buildScript := sourceBuildInvocation("docker", workdir, "svc-1", "uploy/svc-1:"+sha, source)
+	buildCmd, buildScript := sourceBuildInvocation("docker", workdir, "svc-1", "stagezero/svc-1:"+sha, source)
 	if buildCmd != "sh -s" {
 		t.Errorf("build command = %q, want %q", buildCmd, "sh -s")
 	}
@@ -186,7 +186,7 @@ func TestSourceBuildCommandsUsePinnedPlanAndSHA(t *testing.T) {
 		"docker buildx build",
 		"BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend:" + railpackVersion,
 		"cache-key=svc-1",
-		"type=docker,name=uploy/svc-1:" + sha,
+		"type=docker,name=stagezero/svc-1:" + sha,
 		workdir + "/demo-" + sha,
 	} {
 		if !strings.Contains(string(buildScript), want) {
@@ -223,7 +223,7 @@ func TestSourceBuildKeepsSecretsOutOfTheCommandLine(t *testing.T) {
 			{Key: "A_FIRST", Value: "plain value"},
 		},
 	}
-	cmd, script := sourceBuildInvocation("docker", "/tmp/work", "svc-1", "uploy/svc-1:"+sha, source)
+	cmd, script := sourceBuildInvocation("docker", "/tmp/work", "svc-1", "stagezero/svc-1:"+sha, source)
 
 	// The command line is the argv of the remote shell: ps shows it and sudo
 	// logs it. Nothing secret may appear there.
@@ -252,7 +252,7 @@ func TestSourceBuildKeepsSecretsOutOfTheCommandLine(t *testing.T) {
 func TestSourceBuildWithoutEnvKeepsNormalBuild(t *testing.T) {
 	sha := strings.Repeat("c", 40)
 	source := &SourceDeployment{Owner: "owner", Repo: "demo", SHA: sha}
-	_, script := sourceBuildInvocation("docker", "/tmp/work", "svc-1", "uploy/svc-1:"+sha, source)
+	_, script := sourceBuildInvocation("docker", "/tmp/work", "svc-1", "stagezero/svc-1:"+sha, source)
 	if strings.Contains(string(script), "secrets-hash") || strings.Contains(string(script), "--secret") {
 		t.Fatalf("empty environment unexpectedly changed build script: %s", script)
 	}
@@ -270,7 +270,7 @@ func TestSourceBuildKeepsSecretsOutOfSudoCommandLine(t *testing.T) {
 		SHA:     sha,
 		EnvVars: []db.EnvPair{{Key: "TOKEN", Value: "secret value"}},
 	}
-	cmd, script := sourceBuildInvocation("sudo -n docker", "/tmp/work", "svc-1", "uploy/svc-1:"+sha, source)
+	cmd, script := sourceBuildInvocation("sudo -n docker", "/tmp/work", "svc-1", "stagezero/svc-1:"+sha, source)
 	if cmd != "sudo -n sh -s" {
 		t.Fatalf("sudo build command = %q, want %q", cmd, "sudo -n sh -s")
 	}

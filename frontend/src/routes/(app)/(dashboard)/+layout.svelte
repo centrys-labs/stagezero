@@ -9,7 +9,7 @@
 		{ href: '/servers', label: 'Servers' }
 	];
 
-	let workspaceName = $derived(data.workspace?.name ?? 'Uploy');
+	let workspaceName = $derived(data.workspace?.name ?? 'StageZero');
 	let initial = $derived(workspaceName.charAt(0).toUpperCase());
 	let workspaceTitle = $derived(
 		data.workspace?.role ? `${workspaceName} · ${data.workspace.role}` : workspaceName

@@ -197,7 +197,7 @@
 </script>
 
 <svelte:head>
-	<title>New project · Uploy</title>
+	<title>New project · StageZero</title>
 </svelte:head>
 
 <div

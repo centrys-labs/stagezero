@@ -10,15 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WahyuS002/uploy/config"
+	"github.com/centrys-labs/stagezero/config"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 )
 
 const (
-	stateExpiry          = 10 * time.Minute
-	stateCleanupInterval = 2 * time.Minute
+	stateExpiry = 10 * time.Minute
 )
 
 type ProviderUserInfo struct {
@@ -30,10 +29,6 @@ var (
 	oauthStates   = make(map[string]time.Time)
 	oauthStatesMu sync.Mutex
 )
-
-func init() {
-	go oauthStatesCleanupLoop()
-}
 
 func GitHubOAuthConfig() *oauth2.Config {
 	return &oauth2.Config{
@@ -63,7 +58,13 @@ func GenerateOAuthState() (string, error) {
 	state := hex.EncodeToString(b)
 
 	oauthStatesMu.Lock()
-	oauthStates[state] = time.Now().Add(stateExpiry)
+	now := time.Now()
+	for existing, expiry := range oauthStates {
+		if !now.Before(expiry) {
+			delete(oauthStates, existing)
+		}
+	}
+	oauthStates[state] = now.Add(stateExpiry)
 	oauthStatesMu.Unlock()
 
 	return state, nil
@@ -79,22 +80,6 @@ func ValidateOAuthState(state string) bool {
 	}
 	delete(oauthStates, state)
 	return time.Now().Before(expiry)
-}
-
-func oauthStatesCleanupLoop() {
-	ticker := time.NewTicker(stateCleanupInterval)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		oauthStatesMu.Lock()
-		now := time.Now()
-		for state, expiry := range oauthStates {
-			if now.After(expiry) {
-				delete(oauthStates, state)
-			}
-		}
-		oauthStatesMu.Unlock()
-	}
 }
 
 func FetchGitHubUser(ctx context.Context, cfg *oauth2.Config, code string) (ProviderUserInfo, error) {

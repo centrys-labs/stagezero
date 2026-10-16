@@ -7,9 +7,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/proxy"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/proxy"
+	"github.com/centrys-labs/stagezero/ssh"
 )
 
 func StartDeploymentReconciler(ctx context.Context) {

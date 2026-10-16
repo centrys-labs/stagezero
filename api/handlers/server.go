@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/source"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/source"
 )
 
 type Server struct {

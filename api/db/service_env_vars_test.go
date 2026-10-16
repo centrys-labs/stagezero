@@ -3,7 +3,7 @@ package db
 import (
 	"testing"
 
-	"github.com/WahyuS002/uploy/crypto"
+	"github.com/centrys-labs/stagezero/crypto"
 )
 
 // Env var values are encrypted at rest, but rows written before that change are

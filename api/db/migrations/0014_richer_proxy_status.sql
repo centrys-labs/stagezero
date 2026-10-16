@@ -4,7 +4,7 @@
 ALTER TABLE servers ADD COLUMN proxy_status TEXT NOT NULL DEFAULT 'not_configured';
 ALTER TABLE servers ADD COLUMN proxy_last_checked_at TIMESTAMPTZ;
 ALTER TABLE servers ADD COLUMN proxy_last_error TEXT;
--- none = no proxy managed, managed = Uploy manages Traefik on this server
+-- none = no proxy managed, managed = StageZero manages Traefik on this server
 ALTER TABLE servers ADD COLUMN proxy_mode TEXT NOT NULL DEFAULT 'none';
 
 -- Migrate existing data

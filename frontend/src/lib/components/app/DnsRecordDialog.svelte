@@ -203,7 +203,9 @@
 								<!-- Same 12px inset as a copyable cell, reached without the nesting
 							     since there is no surface to hold off the edges here. -->
 								<td class="px-3 py-2.5 align-top text-muted-foreground">
-									your server's IP address{serverHost ? ` (Uploy reaches it at ${serverHost})` : ''}
+									your server's IP address{serverHost
+										? ` (StageZero reaches it at ${serverHost})`
+										: ''}
 								</td>
 							{/if}
 						</tr>
@@ -229,7 +231,7 @@
 					{#if domain?.status === 'ready'}
 						DNS record is active.
 					{:else if needsDeploy}
-						Deploy your app so Uploy can configure proxy routing and verify DNS.
+						Deploy your app so StageZero can configure proxy routing and verify DNS.
 					{:else if nextCheck.seconds !== null}
 						<!-- The number counts to the reconciler's next pass, which is the only
 						     moment this can change — not to a refresh of our own, which would
@@ -251,7 +253,7 @@
 						<span class="whitespace-nowrap tabular-nums" aria-hidden="true">
 							{nextCheck.seconds > 0 ? `Checking again in ${nextCheck.seconds}s.` : 'Checking now…'}
 						</span>
-						<span class="sr-only">Uploy re-checks this automatically.</span>
+						<span class="sr-only">StageZero re-checks this automatically.</span>
 					{:else}
 						Updates automatically.
 					{/if}

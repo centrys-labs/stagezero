@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WahyuS002/uploy/crypto"
-	"github.com/WahyuS002/uploy/source"
+	"github.com/centrys-labs/stagezero/crypto"
+	"github.com/centrys-labs/stagezero/source"
 )
 
 // configSchemaVersion rides along in every snapshot so a stored one can still be
@@ -341,7 +341,7 @@ func strPtr(s string) *string { return &s }
 // is.
 //
 // A service with no deployed config to compare against counts as one change —
-// it is pending (it has either never run, or ran before Uploy recorded what it
+// it is pending (it has either never run, or ran before StageZero recorded what it
 // shipped), but there is no honest itemised answer to give, so the count says
 // "something" rather than inventing a list.
 //
@@ -383,7 +383,7 @@ func PendingChangeCounts(ctx context.Context, svcs []Service, sources map[string
 // PendingChanges is the itemised form for one service: the changes themselves,
 // and whether there was anything to compare against at all.
 //
-// hasBaseline false means the service is pending but Uploy cannot say how — the
+// hasBaseline false means the service is pending but StageZero cannot say how — the
 // caller should say that rather than render an empty list, which would read as
 // "nothing to deploy" directly under a badge saying otherwise.
 func PendingChanges(ctx context.Context, svc Service) (changes []ConfigChange, hasBaseline bool, err error) {
@@ -452,7 +452,7 @@ func sourceAwareConfigs(ctx context.Context, svcs []Service, sources map[string]
 			continue
 		}
 		cfg := configs[result.serviceID]
-		cfg.Image = fmt.Sprintf("uploy/%s:%s", result.serviceID, result.sha)
+		cfg.Image = fmt.Sprintf("stagezero/%s:%s", result.serviceID, result.sha)
 		configs[result.serviceID] = cfg
 	}
 	return configs

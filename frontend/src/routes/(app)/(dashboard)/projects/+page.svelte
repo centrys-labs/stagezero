@@ -104,7 +104,7 @@
 </script>
 
 <svelte:head>
-	<title>Projects · Uploy</title>
+	<title>Projects · StageZero</title>
 </svelte:head>
 
 <div class="mb-5 flex items-center justify-between gap-4">

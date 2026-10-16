@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/WahyuS002/uploy/crypto"
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/crypto"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 )
 
 // decryptEnvValue reads a stored env var value.

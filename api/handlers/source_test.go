@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/handlers"
-	"github.com/WahyuS002/uploy/source"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/handlers"
+	"github.com/centrys-labs/stagezero/source"
 )
 
 type fakeSourceAnalyzer struct {

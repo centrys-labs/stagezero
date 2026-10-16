@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, chore/migrate-frontend-to-bun]
 
 jobs:
   backend:
@@ -15,60 +15,53 @@ jobs:
         with:
           go-version-file: api/go.mod
           cache-dependency-path: api/go.sum
-      - name: Install oapi-codegen
-        run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0
-      - name: Generate backend types from OpenAPI spec
-        run: oapi-codegen -config oapi-codegen.yaml openapi.yaml
-        working-directory: api
-      - name: Check for oapi-codegen drift
-        run: |
-          if ! git diff --exit-code api/gen/api.gen.go; then
-            echo "::error::Generated backend types are out of date. Run 'make -C api oapi' and commit the result."
-            exit 1
-          fi
       - run: go build ./...
         working-directory: api
       - run: go vet ./...
         working-directory: api
       - run: go test ./...
         working-directory: api
+      - run: go test -race ./...
+        working-directory: api
 
   frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          package_json_file: frontend/package.json
+          bun-version: 1.4.3
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-        working-directory: frontend
-      - run: pnpm check
-        working-directory: frontend
-
-  openapi-drift:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-go@v5
         with:
-          package_json_file: frontend/package.json
-      - uses: actions/setup-node@v4
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+      - uses: actions/cache@v4
         with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-        working-directory: frontend
-      - run: pnpm generate:api
-        working-directory: frontend
-      - name: Check for OpenAPI type drift
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
+      - run: bun run --cwd frontend check
+      - run: bun run lint
+      - run: bun run build:web
+      - run: bun test scripts/setup.test.ts
+      - name: Install pinned Go generators
         run: |
-          if ! git diff --exit-code frontend/src/lib/api/v1.d.ts; then
-            echo "::error::Generated OpenAPI types are out of date. Run 'pnpm generate:api' and commit the result."
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0
+      - run: bun run generate
+      - name: Check for generated code drift
+        run: |
+          if ! git diff --exit-code -- api/gen/api.gen.go api/db/sqlcgen frontend/src/lib/api/v1.d.ts; then
+            echo "::error::Generated code is out of date. Run 'bun run generate' and commit the result."
             exit 1
           fi
+
+  openapi-drift:
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "OpenAPI drift passed in the frontend job."

@@ -309,7 +309,7 @@ type CreateProjectFromImageRequest struct {
 	// ContainerPort Container port the service listens on.
 	ContainerPort int `json:"container_port"`
 
-	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
+	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
 	HostPort *int `json:"host_port,omitempty"`
 
 	// Image Docker image reference, e.g. `nginx:latest` or `ghcr.io/owner/repo:tag`.
@@ -372,7 +372,7 @@ type CreateServiceRequest struct {
 	ContainerPort int    `json:"container_port"`
 	EnvironmentId string `json:"environment_id"`
 
-	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
+	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
 	HostPort *int                      `json:"host_port,omitempty"`
 	Image    string                    `json:"image"`
 	Kind     *CreateServiceRequestKind `json:"kind,omitempty"`
@@ -462,7 +462,7 @@ type LogoutResponse struct {
 type PendingChangesResponse struct {
 	Changes []ConfigChange `json:"changes"`
 
-	// HasBaseline False when there is no deployed configuration to compare against: the service has never deployed, or last deployed before Uploy recorded configurations. The service is pending either way, but changes is empty because no itemised answer exists — say so rather than showing an empty list under a badge that says otherwise.
+	// HasBaseline False when there is no deployed configuration to compare against: the service has never deployed, or last deployed before StageZero recorded configurations. The service is pending either way, but changes is empty because no itemised answer exists — say so rather than showing an empty list under a badge that says otherwise.
 	HasBaseline bool `json:"has_baseline"`
 }
 
@@ -542,7 +542,7 @@ type ServiceResponse struct {
 	// HasDeployed True once at least one deployment of this service has succeeded. Combined with has_pending_changes it distinguishes a service that will be created on its server from one that will be updated. Derived per request, never stored.
 	HasDeployed bool `json:"has_deployed"`
 
-	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
+	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
 	HostPort *int                `json:"host_port,omitempty"`
 	Id       string              `json:"id"`
 	Image    string              `json:"image"`
@@ -550,7 +550,7 @@ type ServiceResponse struct {
 	Name     string              `json:"name"`
 
 	// PendingChangeCount How many changes are waiting to be deployed: the difference between the service's current configuration and the configuration its last successful deployment actually shipped, counted per field, per domain and per variable. Zero means the running container matches what the service says it is.
-	// A service with nothing to compare against — never deployed, or last deployed before Uploy recorded configurations — reports 1. It is pending, but there is no itemised answer to give.
+	// A service with nothing to compare against — never deployed, or last deployed before StageZero recorded configurations — reports 1. It is pending, but there is no itemised answer to give.
 	// Derived per request, never stored.
 	PendingChangeCount int                    `json:"pending_change_count"`
 	ProjectId          string                 `json:"project_id"`
@@ -599,7 +599,7 @@ type UpdateServiceRequest struct {
 	// ContainerPort Container port the image listens on.
 	ContainerPort int `json:"container_port"`
 
-	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the uploy network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the Uploy proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
+	// HostPort Host port the service is published on. Omit to keep the service internal — reachable by other services on the stagezero network and by nothing outside the machine, which is what a database wants. 80 and 443 are rejected: they belong to the StageZero proxy. Ignored while the service has a domain, since that traffic goes through the proxy.
 	HostPort *int   `json:"host_port,omitempty"`
 	Image    string `json:"image"`
 	Name     string `json:"name"`

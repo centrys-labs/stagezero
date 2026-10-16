@@ -27,7 +27,7 @@ WITH new_service AS (
     SELECT 'svc-' || gen_random_uuid()::text AS id
 )
 INSERT INTO services (id, name, image, container_name, container_port, host_port, server_id, workspace_id, kind, project_id, environment_id)
-SELECT id, $1, 'uploy/' || id, $2, $3, $4, $5, $6, $7, $8, $9
+SELECT id, $1, 'stagezero/' || id, $2, $3, $4, $5, $6, $7, $8, $9
 FROM new_service
 RETURNING id, name, image, container_name, container_port, host_port, server_id, workspace_id, kind, project_id, environment_id, created_at, updated_at,
     FALSE::boolean AS has_deployed;

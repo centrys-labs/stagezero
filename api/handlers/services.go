@@ -9,12 +9,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/WahyuS002/uploy/auth"
-	"github.com/WahyuS002/uploy/db"
-	"github.com/WahyuS002/uploy/gen"
-	"github.com/WahyuS002/uploy/jobs"
-	"github.com/WahyuS002/uploy/respond"
-	"github.com/WahyuS002/uploy/ssh"
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/jobs"
+	"github.com/centrys-labs/stagezero/respond"
+	"github.com/centrys-labs/stagezero/ssh"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -50,7 +50,7 @@ func isUniqueViolation(err error) bool {
 // of the image, so 80 is perfectly normal there (nginx, caddy, httpd all use it).
 //
 // hostPort is where the service is published on the machine. Nil means it is
-// not published at all: other services still reach it over the uploy network,
+// not published at all: other services still reach it over the stagezero network,
 // but nothing outside the machine can. 80 and 443 belong to the Traefik proxy,
 // so nothing else may take them.
 func validatePorts(containerPort int, hostPort *int) string {
@@ -64,7 +64,7 @@ func validatePorts(containerPort int, hostPort *int) string {
 		return "host port must be between 1 and 65535"
 	}
 	if *hostPort == 80 || *hostPort == 443 {
-		return "ports 80 and 443 are reserved for the Uploy proxy; use another host port for direct access"
+		return "ports 80 and 443 are reserved for the StageZero proxy; use another host port for direct access"
 	}
 	return ""
 }
@@ -367,7 +367,7 @@ func (s *Server) DeleteService(w http.ResponseWriter, r *http.Request, id string
 
 	// Tear the container down before dropping the record. Fail closed: if the
 	// server is unreachable we would otherwise leave a container serving traffic
-	// with nothing in Uploy pointing at it, and no way to reach it from the UI.
+	// with nothing in StageZero pointing at it, and no way to reach it from the UI.
 	// A failed delete is recoverable, an orphan is not.
 	if svc.HasDeployed {
 		activeDeployment, activeConfig, activeErr := db.GetActiveDeploymentConfig(r.Context(), svc.ID)
@@ -441,7 +441,7 @@ func serviceResponses(ctx context.Context, svcs []db.Service) ([]gen.ServiceResp
 }
 
 func sourceImageTag(serviceID, sha string) string {
-	return "uploy/" + serviceID + ":" + sha
+	return "stagezero/" + serviceID + ":" + sha
 }
 
 func serviceIDs(svcs []db.Service) []string {

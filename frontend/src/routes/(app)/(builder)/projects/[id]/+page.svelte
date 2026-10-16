@@ -588,7 +588,7 @@
 </script>
 
 <svelte:head>
-	<title>{project ? `${project.name} · Uploy` : 'Project · Uploy'}</title>
+	<title>{project ? `${project.name} · StageZero` : 'Project · StageZero'}</title>
 </svelte:head>
 
 {#snippet leadingSnippet()}
@@ -792,7 +792,7 @@
 										<EmptyState
 											icon={ServerStack}
 											title="Connect a server first"
-											description="Uploy needs a server with SSH access before it can deploy a service."
+											description="StageZero needs a server with SSH access before it can deploy a service."
 										>
 											{#snippet actions()}
 												{#if isOwner}

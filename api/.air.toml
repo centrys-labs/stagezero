@@ -2,8 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  cmd = "go build -o ./tmp/uploy ."
-  bin = "./tmp/uploy"
+  cmd = "go build -o ./tmp/stagezero ."
+  bin = "./tmp/stagezero"
   delay = 1000
   exclude_dir = ["tmp", "node_modules"]
   exclude_regex = ["_test\\.go$"]

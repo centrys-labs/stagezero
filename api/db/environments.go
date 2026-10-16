@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/WahyuS002/uploy/db/sqlcgen"
+	"github.com/centrys-labs/stagezero/db/sqlcgen"
 )
 
 type Environment struct {

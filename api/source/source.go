@@ -259,7 +259,7 @@ func Fetch(ctx context.Context, r Repo, sha string) (dir string, cleanup func(),
 	if !commitPattern.MatchString(sha) {
 		return "", nil, fmt.Errorf("invalid commit SHA")
 	}
-	root, err := os.MkdirTemp("", "uploy-source-")
+	root, err := os.MkdirTemp("", "stagezero-source-")
 	if err != nil {
 		return "", nil, err
 	}
@@ -442,7 +442,7 @@ func within(root, path string) bool {
 // Prepare runs Railpack's analysis phase and parses only the fields used by
 // the API. The raw plan is retained verbatim for the later build phase.
 func Prepare(ctx context.Context, dir string, env map[string]string) (Plan, Info, error) {
-	planFile, err := os.CreateTemp("", "uploy-plan-*.json")
+	planFile, err := os.CreateTemp("", "stagezero-plan-*.json")
 	if err != nil {
 		return Plan{}, Info{}, err
 	}
@@ -452,7 +452,7 @@ func Prepare(ctx context.Context, dir string, env map[string]string) (Plan, Info
 	}
 	defer os.Remove(planPath)
 
-	infoFile, err := os.CreateTemp("", "uploy-info-*.json")
+	infoFile, err := os.CreateTemp("", "stagezero-info-*.json")
 	if err != nil {
 		return Plan{}, Info{}, err
 	}

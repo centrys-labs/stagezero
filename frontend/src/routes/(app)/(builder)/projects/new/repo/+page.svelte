@@ -131,7 +131,7 @@
 </script>
 
 <svelte:head>
-	<title>Import a GitHub repository · Uploy</title>
+	<title>Import a GitHub repository · StageZero</title>
 </svelte:head>
 
 <div

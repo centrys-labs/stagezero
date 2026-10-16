@@ -42,7 +42,7 @@
 </script>
 
 <svelte:head>
-	<title>Create your account · Uploy</title>
+	<title>Create your account · StageZero</title>
 </svelte:head>
 
 <AuthCard title="Create your account">
