@@ -4,6 +4,10 @@
   "workspaces": {
     "": {
       "name": "frontend",
+    },
+    "frontend": {
+      "name": "frontend",
+      "version": "0.0.1",
       "dependencies": {
         "@fontsource-variable/inter": "^5.2.8",
         "@steeze-ui/heroicons": "^2.4.2",
@@ -411,6 +415,8 @@
     "flat-cache": ["flat-cache@4.0.1", "", { "dependencies": { "flatted": "3.3.3", "keyv": "4.5.4" } }, "sha512-f7ccFPK3SXFHpx15UIGyRJ/FJQctuKZ0zVuN3frBo4HnK3cay9VEW0R6yPYFHC0AgqhukPzKjq22t5DmAyqGyw=="],
 
     "flatted": ["flatted@3.3.3", "", {}, "sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg=="],
+
+    "frontend": ["frontend@workspace:frontend"],
 
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
