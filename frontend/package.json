@@ -1,6 +1,6 @@
 {
 	"name": "frontend",
-	"packageManager": "pnpm@9.15.4",
+	"packageManager": "bun@1.4.3",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
@@ -8,7 +8,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"prepare": "svelte-kit sync || echo ''",
+		"prepare": "svelte-kit sync",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
@@ -42,11 +42,9 @@
 		"unplugin-icons": "^23.0.1",
 		"vite": "^7.3.1"
 	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild"
-		]
-	},
+	"trustedDependencies": [
+		"esbuild"
+	],
 	"dependencies": {
 		"@fontsource-variable/inter": "^5.2.8",
 		"@steeze-ui/heroicons": "^2.4.2",

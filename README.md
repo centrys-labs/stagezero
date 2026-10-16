@@ -23,11 +23,13 @@ A lightweight self-hosted application deployment platform. StageZero allows you 
 ### Frontend (`/frontend`)
 - SvelteKit (Svelte 5)
 - Tailwind CSS v4, Bits UI, Lucide Icons
-- TypeScript, Vite, `pnpm`
+- TypeScript, Vite, Bun (package manager and development script runner)
 
 ---
 
 ## Quickstart
+
+Install Go 1.25+, Bun 1.4.3, Node.js 22, and Docker with Compose. Bun installs frontend dependencies and runs scripts; Vite and the current SvelteKit adapter still use Node.js. The included Compose file starts PostgreSQL 18 for local development.
 
 ### 1. Start Database
 
@@ -42,7 +44,8 @@ docker compose up -d
 ```bash
 cd api
 cp .env.example .env
-# Edit .env and set ENCRYPTION_KEY (e.g. openssl rand -hex 32)
+# Set ENCRYPTION_KEY in .env (e.g. openssl rand -hex 32).
+# DATABASE_URL defaults to the local Compose database.
 
 # Run database migrations
 go run ./cmd/migrate
@@ -57,8 +60,9 @@ The API server runs at `http://localhost:8080`.
 
 ```bash
 cd frontend
-pnpm install
-pnpm dev
+cp .env.example .env
+bun install --frozen-lockfile
+bun run dev
 ```
 
 Open `http://localhost:5173` in your browser.
@@ -71,13 +75,17 @@ Open `http://localhost:5173` in your browser.
 - `make dev`: Run dev server with Air
 - `make migrate-up`: Run database migrations
 - `make generate`: Run `sqlc` and `oapi-codegen`
+- `go build ./...`, `go vet ./...`, `go test ./...`: Backend checks
 
 ### Frontend (`/frontend`)
-- `pnpm dev`: Start Vite development server
-- `pnpm build`: Build production bundle
-- `pnpm lint`: Run Prettier and ESLint checks
-- `pnpm format`: Format frontend code
-- `pnpm generate:api`: Generate TypeScript types from OpenAPI spec
+- `bun run dev`: Start Vite development server
+- `bun run check`: Run Svelte and TypeScript checks
+- `bun run lint`: Run Prettier and ESLint checks
+- `bun run build`: Build production bundle
+- `bun run format`: Format frontend code
+- `bun run generate:api`: Generate TypeScript types from `api/openapi.yaml`
+
+`api/openapi.yaml` is the API contract. After editing it, run `make -C api oapi` and `bun run generate:api` from `frontend/`, then commit the generated files. CI checks for drift. The frontend currently uses SvelteKit's `adapter-auto`; a successful build does not by itself provide a production server. Choose a supported deployment target and adapter before hosting it. Bun does not change the production runtime.
 
 ## License
 

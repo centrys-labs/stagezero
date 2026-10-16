@@ -37,38 +37,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          package_json_file: frontend/package.json
+          bun-version: 1.4.3
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-        working-directory: frontend
-      - run: pnpm check
-        working-directory: frontend
-
-  openapi-drift:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/cache@v4
         with:
-          package_json_file: frontend/package.json
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      - run: bun install --frozen-lockfile
         working-directory: frontend
-      - run: pnpm generate:api
+      - run: bun run check
+        working-directory: frontend
+      - run: bun run lint
+        working-directory: frontend
+      - run: bun run build
+        working-directory: frontend
+      - run: bun run generate:api
         working-directory: frontend
       - name: Check for OpenAPI type drift
         run: |
           if ! git diff --exit-code frontend/src/lib/api/v1.d.ts; then
-            echo "::error::Generated OpenAPI types are out of date. Run 'pnpm generate:api' and commit the result."
+            echo "::error::Generated OpenAPI types are out of date. Run 'bun run generate:api' and commit the result."
             exit 1
           fi
