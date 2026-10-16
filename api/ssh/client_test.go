@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // startFollowServer runs an in-process SSH server whose only command writes one
@@ -18,7 +21,7 @@ import (
 // checking a returned value would catch.
 //
 // Returns the address to dial and a client private key the server accepts.
-func startFollowServer(t *testing.T) (addr string, clientKeyPEM string) {
+func startFollowServer(t *testing.T) (addr string, clientKeyPEM string, hostKey gossh.PublicKey) {
 	t.Helper()
 
 	hostKeyPEM, err := GenerateEd25519Key()
@@ -58,7 +61,103 @@ func startFollowServer(t *testing.T) (addr string, clientKeyPEM string) {
 		}
 	}()
 
-	return listener.Addr().String(), clientKeyPEM
+	return listener.Addr().String(), clientKeyPEM, hostSigner.PublicKey()
+}
+
+func trustedClientConfig(t *testing.T, addr, key string, hostKey gossh.PublicKey) ServerConfig {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "known_hosts")
+	if err := os.WriteFile(path, []byte(knownhosts.Line([]string{knownhosts.Normalize(addr)}, hostKey)+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("SSH_KNOWN_HOSTS_FILE", path)
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	portNum, err := strconv.Atoi(port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ServerConfig{Host: host, Port: portNum, User: "tester", PrivateKey: key}
+}
+
+func TestNewClientVerifiesHostKey(t *testing.T) {
+	addr, clientKey, hostKey := startFollowServer(t)
+	cfg := trustedClientConfig(t, addr, clientKey, hostKey)
+	path := os.Getenv("SSH_KNOWN_HOSTS_FILE")
+
+	t.Run("trusted", func(t *testing.T) {
+		client, err := NewClient(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client.Close()
+	})
+	t.Run("missing file", func(t *testing.T) {
+		t.Setenv("SSH_KNOWN_HOSTS_FILE", "")
+		if client, err := NewClient(cfg); err == nil {
+			client.Close()
+			t.Fatal("missing trust store accepted")
+		}
+	})
+	t.Run("unknown host", func(t *testing.T) {
+		if err := os.WriteFile(path, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		client, err := NewClient(cfg)
+		if err == nil {
+			client.Close()
+			t.Fatal("unknown host accepted")
+		}
+		if !errors.Is(err, ErrHostKeyUntrusted) {
+			t.Fatalf("unknown host error not classified: %v", err)
+		}
+	})
+	t.Run("mismatched key", func(t *testing.T) {
+		otherKeyPEM, err := GenerateEd25519Key()
+		if err != nil {
+			t.Fatal(err)
+		}
+		otherSigner, err := gossh.ParsePrivateKey([]byte(otherKeyPEM))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(knownhosts.Line([]string{knownhosts.Normalize(addr)}, otherSigner.PublicKey())+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		client, err := NewClient(cfg)
+		if err == nil {
+			client.Close()
+			t.Fatal("mismatched host key accepted")
+		}
+		if !errors.Is(err, ErrHostKeyUntrusted) {
+			t.Fatalf("mismatched host key error not classified: %v", err)
+		}
+	})
+	t.Run("rotation after verification", func(t *testing.T) {
+		if err := os.WriteFile(path, []byte(knownhosts.Line([]string{knownhosts.Normalize(addr)}, hostKey)+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		client, err := NewClient(cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		client.Close()
+	})
+	t.Run("connection failure", func(t *testing.T) {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		port := listener.Addr().(*net.TCPAddr).Port
+		listener.Close()
+		cfg.Port = port
+		if client, err := NewClient(cfg); err == nil {
+			client.Close()
+			t.Fatal("closed server accepted")
+		}
+	})
 }
 
 func serveFollowConn(conn net.Conn, config *gossh.ServerConfig) {
@@ -101,7 +200,8 @@ func serveFollowConn(conn net.Conn, config *gossh.ServerConfig) {
 // remote process — a leak that only shows up under load, long after the change
 // that caused it.
 func TestStreamCommandContextCancelStopsStream(t *testing.T) {
-	addr, clientKey := startFollowServer(t)
+	addr, clientKey, hostKey := startFollowServer(t)
+	trustedClientConfig(t, addr, clientKey, hostKey)
 
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {

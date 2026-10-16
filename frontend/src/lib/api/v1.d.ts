@@ -565,10 +565,16 @@ export interface components {
 		ErrorResponse: {
 			error: string;
 			/**
-			 * @description Machine-readable failure stage. Present on SSH probe failures so a client can offer the right remedy: the three stages need entirely different fixes, and the human message alone cannot be branched on.
+			 * @description Machine-readable failure stage. Present on SSH probe failures so a client can offer the right remedy: each stage needs a different fix, and the human message alone cannot be branched on.
 			 * @enum {string}
 			 */
-			code?: 'unreachable' | 'key_rejected' | 'key_invalid' | 'session_failed' | 'docker_missing';
+			code?:
+				| 'unreachable'
+				| 'host_key_untrusted'
+				| 'key_rejected'
+				| 'key_invalid'
+				| 'session_failed'
+				| 'docker_missing';
 		};
 		CreateSSHKeyRequest: {
 			name: string;

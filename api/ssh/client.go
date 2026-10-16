@@ -6,17 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	gossh "golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 )
 
 // ErrInvalidPrivateKey is returned when the stored key cannot be parsed at all,
 // which is a different failure from a server refusing a well-formed key.
 // Callers branch on it, so it is a sentinel rather than a bare fmt.Errorf.
 var ErrInvalidPrivateKey = errors.New("private key is not valid")
+
+// ErrHostKeyUntrusted is returned when a server's host key is absent from the
+// trusted known_hosts file, or differs from the recorded key. It fails the
+// handshake before authentication: a changed key means the connection is not
+// trusted, not that our SSH key was refused.
+var ErrHostKeyUntrusted = errors.New("server host key is not trusted")
 
 type Client struct {
 	client    *gossh.Client
@@ -73,12 +83,32 @@ type ServerConfig struct {
 	User       string
 	PrivateKey string // Fill private key SSH, not path file
 
-	// TODO: Add KnownHostsPath or pinned host key support for server host key verification.
 	// TODO: Add DialTimeout so the connection does not hang indefinitely.
 	// TODO: Consider supporting passphrase-protected private keys if needed later.
 }
 
 func NewClient(cfg ServerConfig) (*Client, error) {
+	knownHostsPath := os.Getenv("SSH_KNOWN_HOSTS_FILE")
+	if !filepath.IsAbs(knownHostsPath) {
+		return nil, fmt.Errorf("SSH_KNOWN_HOSTS_FILE must be an absolute path to a trusted known_hosts file")
+	}
+	hostKeyCallback, err := knownhosts.New(knownHostsPath)
+	if err != nil {
+		return nil, fmt.Errorf("load SSH known hosts: %w", err)
+	}
+	// Classify trust failures here so callers can tell "host key not trusted"
+	// from "our SSH key was refused" without importing knownhosts themselves.
+	verifiedHostKey := func(hostname string, remote net.Addr, key gossh.PublicKey) error {
+		if err := hostKeyCallback(hostname, remote, key); err != nil {
+			var keyErr *knownhosts.KeyError
+			if errors.As(err, &keyErr) && len(keyErr.Want) > 0 {
+				return fmt.Errorf("%w: key changed for %s", ErrHostKeyUntrusted, hostname)
+			}
+			return fmt.Errorf("%w: %s is not present in the trusted known_hosts file", ErrHostKeyUntrusted, hostname)
+		}
+		return nil
+	}
+
 	signer, err := gossh.ParsePrivateKey([]byte(cfg.PrivateKey))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidPrivateKey, err)
@@ -87,14 +117,13 @@ func NewClient(cfg ServerConfig) (*Client, error) {
 	config := &gossh.ClientConfig{
 		User:            cfg.User,
 		Auth:            []gossh.AuthMethod{gossh.PublicKeys(signer)},
-		HostKeyCallback: gossh.InsecureIgnoreHostKey(),
+		HostKeyCallback: verifiedHostKey,
 		Timeout:         10 * time.Second,
 
-		// TODO: Replace InsecureIgnoreHostKey with known_hosts or pinned host key verification.
 		// TODO: Consider restricting SSH algorithms to secure SupportedAlgorithms().
 	}
 
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	client, err := gossh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot connect to %s: %w", addr, err)
