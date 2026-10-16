@@ -59,3 +59,9 @@ jobs:
             echo "::error::Generated code is out of date. Run 'bun run generate' and commit the result."
             exit 1
           fi
+
+  openapi-drift:
+    needs: frontend
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "OpenAPI drift passed in the frontend job."
