@@ -23,12 +23,26 @@ type Rule struct {
 	Duration    time.Duration
 }
 
+// Observation is a single probe of a target. The *Known flags say whether the
+// paired value is a verified fact or just a zero default. A collection failure
+// leaves them false, and unknown evidence must never be read as "recovered".
 type Observation struct {
-	TargetID        string
-	TargetName      string
-	Suppressed      bool
-	Reachable       bool
-	ServiceRunning  bool
+	TargetID   string
+	TargetName string
+	Suppressed bool
+
+	// ReachabilityKnown reports that the target was positively reached or not.
+	ReachabilityKnown bool
+	Reachable         bool
+
+	// ServiceStateKnown reports that Docker returned a current container state.
+	ServiceStateKnown bool
+	ServiceRunning    bool
+
+	// MetricsKnown reports that a fresh, complete usage sample backs the
+	// CPU/memory/disk percentages.
+	MetricsKnown bool
+
 	CPUPercent      float64
 	MemoryPercent   float64
 	DiskUsedPercent float64
@@ -78,6 +92,16 @@ func (t *Tracker) Evaluate(rule Rule, observation Observation, active bool, acti
 		return Transition{Kind: TransitionNone, TargetID: observation.TargetID, TargetName: observation.TargetName}
 	}
 	key := rule.ID + "\x00" + observation.TargetID
+	if !evidenceKnown(rule.Condition, observation) {
+		// A failed or stale collection is not evidence of anything. Clearing the
+		// pending window stops non-consecutive samples counting as one quiet
+		// period, and returning none leaves any active incident open until a
+		// verified healthy sample closes it.
+		t.mu.Lock()
+		delete(t.pending, key)
+		t.mu.Unlock()
+		return Transition{Kind: TransitionNone, TargetID: observation.TargetID, TargetName: observation.TargetName}
+	}
 	violated, value := violation(rule, observation)
 
 	t.mu.Lock()
@@ -107,6 +131,21 @@ func (t *Tracker) Evaluate(rule Rule, observation Observation, active bool, acti
 	pending.value = value
 	t.pending[key] = pending
 	return Transition{Kind: TransitionNone, Since: pending.since, Value: value, TargetID: observation.TargetID, TargetName: observation.TargetName}
+}
+
+// evidenceKnown reports whether the observation carries verified evidence for
+// the rule's condition.
+func evidenceKnown(condition string, observation Observation) bool {
+	switch condition {
+	case ConditionCPUHigh, ConditionMemoryHigh, ConditionDiskLow:
+		return observation.MetricsKnown
+	case ConditionServiceDown:
+		return observation.ServiceStateKnown
+	case ConditionServerUnreachable:
+		return observation.ReachabilityKnown
+	default:
+		return false
+	}
 }
 
 func violation(rule Rule, observation Observation) (bool, float64) {

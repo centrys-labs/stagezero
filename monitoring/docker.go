@@ -468,11 +468,18 @@ func collectDockerSamples(ctx context.Context, client dockerAPI, tracker *docker
 
 	for result := range results {
 		metric, ok := byID[result.id]
-		if !ok || result.statsErr != nil {
+		if !ok {
+			continue
+		}
+		if result.statsErr != nil {
+			// Drop the placeholder rather than publish a fresh zero-usage
+			// sample: an incomplete reading is not a healthy one.
+			delete(byID, result.id)
 			continue
 		}
 		used, limit, validMemory := memoryUsage(result.stats)
 		if !validMemory {
+			delete(byID, result.id)
 			continue
 		}
 		cpuPercent, networkIn, networkOut := tracker.apply(result.id, result.stats, client.podman(), now)
