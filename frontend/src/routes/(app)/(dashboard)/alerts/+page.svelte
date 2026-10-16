@@ -54,6 +54,7 @@
 				return;
 			}
 			channelName = '';
+			channelConfig = '{\n  "url": ""\n}';
 			toast.success({
 				title: 'Channel added',
 				description: 'You can now attach it to alert rules.'

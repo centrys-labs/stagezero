@@ -825,13 +825,16 @@ type NotificationChannelConfig map[string]interface{}
 
 // NotificationChannelResponse defines model for NotificationChannelResponse.
 type NotificationChannelResponse struct {
-	Config    NotificationChannelConfig `json:"config"`
-	CreatedAt time.Time                 `json:"created_at"`
-	Enabled   bool                      `json:"enabled"`
-	Id        string                    `json:"id"`
-	Name      string                    `json:"name"`
-	Type      NotificationChannelType   `json:"type"`
-	UpdatedAt time.Time                 `json:"updated_at"`
+	Config NotificationChannelConfig `json:"config"`
+
+	// ConfiguredCredentials Names of configured credentials, never their values.
+	ConfiguredCredentials []string                `json:"configured_credentials"`
+	CreatedAt             time.Time               `json:"created_at"`
+	Enabled               bool                    `json:"enabled"`
+	Id                    string                  `json:"id"`
+	Name                  string                  `json:"name"`
+	Type                  NotificationChannelType `json:"type"`
+	UpdatedAt             time.Time               `json:"updated_at"`
 }
 
 // NotificationChannelType defines model for NotificationChannelType.

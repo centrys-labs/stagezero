@@ -49,7 +49,7 @@ func ValidateChannelConfig(kind string, config map[string]interface{}) error {
 			return fmt.Errorf("email smtp_port is invalid")
 		}
 	default:
-		return fmt.Errorf("unsupported notification channel type %q", kind)
+		return fmt.Errorf("unsupported notification channel type")
 	}
 	return nil
 }
@@ -86,7 +86,7 @@ func Send(ctx context.Context, channel Channel, message Message) error {
 	case "email":
 		return sendEmail(ctx, channel.Config, message.Title, content)
 	default:
-		return fmt.Errorf("unsupported notification channel type %q", channel.Type)
+		return fmt.Errorf("unsupported notification channel type")
 	}
 }
 
@@ -97,12 +97,12 @@ func sendJSON(ctx context.Context, url string, payload interface{}) error {
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid notification endpoint")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	response, err := httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("notification delivery failed")
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
@@ -131,7 +131,10 @@ func sendEmail(ctx context.Context, config map[string]interface{}, subject, body
 	case <-ctx.Done():
 		return ctx.Err()
 	case err := <-result:
-		return err
+		if err != nil {
+			return fmt.Errorf("email delivery failed")
+		}
+		return nil
 	}
 }
 
