@@ -27,65 +27,32 @@ A lightweight self-hosted application deployment platform. StageZero allows you 
 
 ---
 
-## Quickstart
+## Local development
 
-Install Go 1.25+, Bun 1.4.3, Node.js 22, and Docker with Compose. Bun installs frontend dependencies and runs scripts; Vite and the current SvelteKit adapter still use Node.js. The included Compose file starts PostgreSQL 18 for local development.
-
-### 1. Start Database
-
-Start PostgreSQL via Docker Compose:
+Prerequisites: Bun 1.4.3, Go 1.25+, Node.js 22+, Docker Engine 24+ with Compose v2+ and a running local daemon. Bun manages the JavaScript workspace; Node.js runs Vite. Docker Compose provides PostgreSQL 18. Install these tools yourself before setup; setup never installs system software or invokes `scripts/install.sh` (the separate production server bootstrap).
 
 ```bash
-docker compose up -d
-```
-
-### 2. Backend Setup (`/api`)
-
-```bash
-cd api
-cp .env.example .env
-# Set ENCRYPTION_KEY in .env (e.g. openssl rand -hex 32).
-# DATABASE_URL defaults to the local Compose database.
-
-# Run database migrations
-go run ./cmd/migrate
-
-# Start development server
-air # or go run .
-```
-
-The API server runs at `http://localhost:8080`.
-
-### 3. Frontend Setup (`/frontend`)
-
-```bash
-cd frontend
-cp .env.example .env
-bun install --frozen-lockfile
+git clone https://github.com/centrys-labs/stagezero.git
+cd stagezero
+bun run setup
 bun run dev
 ```
 
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:5173` (API: `http://localhost:8080`). `setup` installs locked Bun/Go dependencies, creates missing `api/.env` and `frontend/.env`, generates a 32-byte hex development encryption key, starts only Compose's PostgreSQL service, waits for health, and applies migrations. It preserves existing environment files, keys, and database volumes. Run it again safely after an interruption. Use `bun run setup --skip-db` when Docker is unavailable, or `--skip-install` to reuse installed dependencies. `bun run setup --help` lists options. `bun run dev:api` uses Air when installed for Go hot reload; otherwise it uses `go run .` without hot reload. `bun run dev:web` runs Vite with hot reload.
 
----
+| Command | Purpose |
+| --- | --- |
+| `bun run dev` / `dev:api` / `dev:web` | Both development servers / individual server |
+| `bun run build` / `build:api` / `build:web` | Build both / Go / web (Go emits no binary into the repo) |
+| `bun run check` / `lint` / `format` / `test` / `test:api` | Go vet and Svelte checks / Prettier + ESLint / web formatting / Go and setup tests / Go tests |
+| `bun run db:up` / `db:down` / `db:migrate` | Start local PostgreSQL / stop without deleting data / guarded local migration |
+| `bun run generate` / `generate:api` | SQLC + Go OpenAPI + TypeScript OpenAPI / TypeScript only |
 
-## Common Scripts
+`generate` requires `sqlc` v1.30.0 and `oapi-codegen` v2.6.0 on PATH (install with `go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0` and `go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.6.0`). CI checks generated files for drift. `api/openapi.yaml` is the shared API contract. `go test -race ./...` from `api/` is also run in CI.
 
-### Backend (`/api`)
-- `make dev`: Run dev server with Air
-- `make migrate-up`: Run database migrations
-- `make generate`: Run `sqlc` and `oapi-codegen`
-- `go build ./...`, `go vet ./...`, `go test ./...`: Backend checks
+`api/.env` needs `DATABASE_URL` (the local Compose URL is in the example) and `ENCRYPTION_KEY` (auto-generated only for new files). OAuth credentials are optional but required to use GitHub/Google sign-in; add the relevant ID and secret pairs in `api/.env` yourself. `frontend/.env` contains `API_BASE_URL=http://localhost:8080` for server-side requests; Vite proxies browser `/api` calls to the same API. Migrations refuse URLs other than the expected local Compose credentials/host/port/database and require a healthy local Compose container. If you use another database, manage its migrations explicitly outside these root commands.
 
-### Frontend (`/frontend`)
-- `bun run dev`: Start Vite development server
-- `bun run check`: Run Svelte and TypeScript checks
-- `bun run lint`: Run Prettier and ESLint checks
-- `bun run build`: Build production bundle
-- `bun run format`: Format frontend code
-- `bun run generate:api`: Generate TypeScript types from `api/openapi.yaml`
-
-`api/openapi.yaml` is the API contract. After editing it, run `make -C api oapi` and `bun run generate:api` from `frontend/`, then commit the generated files. CI checks for drift. The frontend currently uses SvelteKit's `adapter-auto`; a successful build does not by itself provide a production server. Choose a supported deployment target and adapter before hosting it. Bun does not change the production runtime.
+If setup cannot reach Docker, start the daemon and check your user has access. If port 5432 is occupied, stop the conflicting service rather than resetting the Compose volume. If the database rejects local credentials, an existing Compose volume may have been initialized for another user; inspect it and back up data before making any manual changes. Setup will not reset it. If migrations are interrupted, rerun setup after verifying health (`docker compose ps postgres`). For missing Bun/Go/Node, install the indicated version and rerun. If the web UI cannot reach the API, check both servers and `frontend/.env`'s `API_BASE_URL`. The frontend uses SvelteKit `adapter-auto`; a successful build does not provide a production server without an appropriate deployment adapter. Bun does not change production hosting.
 
 ## License
 
