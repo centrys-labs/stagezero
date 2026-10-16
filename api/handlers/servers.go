@@ -56,15 +56,22 @@ func probeServer(host string, port int, user, privateKey string) (*ssh.Client, *
 	return client, nil
 }
 
-// classifyDialError separates the two failures that NewClient collapses into
-// one return. gossh.Dial wraps a *net.OpError only when TCP itself never
-// landed; once the socket is open, any remaining failure is the handshake,
-// which in practice means the server would not accept our key.
+// classifyDialError separates the failures that NewClient collapses into one
+// return. gossh.Dial wraps a *net.OpError only when TCP itself never landed;
+// once the socket is open, remaining failures are the handshake: an untrusted
+// host key, an unparsable client key, or a server that refused our key.
 func classifyDialError(err error) *probeFailure {
 	if errors.Is(err, ssh.ErrInvalidPrivateKey) {
 		return &probeFailure{
 			code:    gen.KeyInvalid,
 			message: "The stored SSH key could not be parsed: " + err.Error(),
+		}
+	}
+
+	if errors.Is(err, ssh.ErrHostKeyUntrusted) {
+		return &probeFailure{
+			code:    gen.HostKeyUntrusted,
+			message: "The server did not present a trusted SSH host key: " + err.Error(),
 		}
 	}
 

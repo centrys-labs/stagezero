@@ -10,7 +10,7 @@
 	let account = $derived(`${controller.sshUser}@${controller.host}`);
 	let keyName = $derived(controller.selectedKey?.name ?? 'this key');
 
-	// One stage, one remedy. The three SSH failures need entirely different
+	// One stage, one remedy. The SSH failures need entirely different
 	// fixes, so collapsing them into a single red line makes the user guess.
 	let copy = $derived.by(() => {
 		switch (failure?.code) {
@@ -18,6 +18,11 @@
 				return {
 					title: `Nothing answered at ${target}`,
 					body: 'Check the address and port, and make sure a firewall or security group allows SSH from StageZero.'
+				};
+			case 'host_key_untrusted':
+				return {
+					title: `StageZero does not trust ${controller.host}`,
+					body: `SSH answered, but the server's host key is not in StageZero's trusted list — or it changed. An operator must verify the key and add it to the SSH known_hosts file before this server can be used.`
 				};
 			case 'key_rejected':
 				return {

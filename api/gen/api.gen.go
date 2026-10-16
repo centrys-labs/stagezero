@@ -78,17 +78,20 @@ func (e DeploymentResponseStatus) Valid() bool {
 
 // Defines values for ErrorResponseCode.
 const (
-	DockerMissing ErrorResponseCode = "docker_missing"
-	KeyInvalid    ErrorResponseCode = "key_invalid"
-	KeyRejected   ErrorResponseCode = "key_rejected"
-	SessionFailed ErrorResponseCode = "session_failed"
-	Unreachable   ErrorResponseCode = "unreachable"
+	DockerMissing    ErrorResponseCode = "docker_missing"
+	HostKeyUntrusted ErrorResponseCode = "host_key_untrusted"
+	KeyInvalid       ErrorResponseCode = "key_invalid"
+	KeyRejected      ErrorResponseCode = "key_rejected"
+	SessionFailed    ErrorResponseCode = "session_failed"
+	Unreachable      ErrorResponseCode = "unreachable"
 )
 
 // Valid indicates whether the value is a known member of the ErrorResponseCode enum.
 func (e ErrorResponseCode) Valid() bool {
 	switch e {
 	case DockerMissing:
+		return true
+	case HostKeyUntrusted:
 		return true
 	case KeyInvalid:
 		return true
@@ -380,12 +383,12 @@ type EnvironmentResponse struct {
 
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
-	// Code Machine-readable failure stage. Present on SSH probe failures so a client can offer the right remedy: the three stages need entirely different fixes, and the human message alone cannot be branched on.
+	// Code Machine-readable failure stage. Present on SSH probe failures so a client can offer the right remedy: each stage needs a different fix, and the human message alone cannot be branched on.
 	Code  *ErrorResponseCode `json:"code,omitempty"`
 	Error string             `json:"error"`
 }
 
-// ErrorResponseCode Machine-readable failure stage. Present on SSH probe failures so a client can offer the right remedy: the three stages need entirely different fixes, and the human message alone cannot be branched on.
+// ErrorResponseCode Machine-readable failure stage. Present on SSH probe failures so a client can offer the right remedy: each stage needs a different fix, and the human message alone cannot be branched on.
 type ErrorResponseCode string
 
 // GenerateSSHKeyRequest defines model for GenerateSSHKeyRequest.
