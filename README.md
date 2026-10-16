@@ -2,6 +2,8 @@
 
 A lightweight self-hosted application deployment platform. StageZero allows you to manage projects, services, environments, servers, SSH keys, and custom domains with automated deployment reconciliations.
 
+Engineering documentation: [architecture, development, operations, feature audits, and roadmap](docs/README.md). The audit describes work on feature branches, not capabilities already shipped on `main`.
+
 ## Features
 
 - Project & Service Management: Organize applications and databases into projects.

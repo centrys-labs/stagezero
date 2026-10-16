@@ -1,0 +1,16 @@
+# Security model and gaps
+
+Snapshot: `origin/main` at `0e3c0ab`. This is a code-grounded threat inventory, not a security certification.
+
+| Boundary | Current behavior and evidence | Operational requirement or gap |
+| --- | --- | --- |
+| Browser to API | `api/main.go` uses generated OpenAPI security metadata (`CookieAuthScopes`) and `auth.RequireAuth`; `api/auth/session.go` sets HttpOnly, SameSite=Lax cookies and configurable Secure; session state is persisted in PostgreSQL. | Use HTTPS and `COOKIE_SECURE=true` outside localhost; review route-level authorization and CSRF assumptions for the chosen hosting origin. A missing security stanza can make a new generated endpoint public. |
+| Workspace isolation | Handlers check membership/roles and workspace ownership before resource operations; FK constraints also enforce some relations (`api/db/migrations/`). | Test cross-workspace ID access at handler boundaries; individual FKs do not prove all multi-hop relationships are workspace-safe. |
+| Secrets at rest | `ENCRYPTION_KEY` encrypts stored SSH private keys, environment values and deployment config snapshots (`api/crypto`, `api/db`, `api/jobs`). | Protect and back up this key separately from DB data; encrypted at rest does not mean secrets cannot leak through logs, subprocess arguments or remote commands. |
+| Remote host | `api/ssh/client.go::NewClient` authenticates with a private key and has a 10-second dial timeout, but accepts **any** host key via `ssh.InsecureIgnoreHostKey()`. | **High-priority unresolved risk**: pin or verify server host keys before production administration; require a trusted enrollment/rotation story. SSH access with Docker permissions is effectively privileged remote access. |
+| OAuth sign-in | `api/auth/oauth.go` uses GitHub/Google for identity; GitHub scopes are sign-in-related, not repository installation/access. OAuth state is held in-process. | Configure provider callback and secrets correctly; do not describe GitHub login as a private-repo integration. Check restart behavior during an OAuth redirect. |
+| Database and migrations | `scripts/setup.ts` guards local Compose migration targets; `api/cmd/migrate` can run against any configured `DATABASE_URL`. | Inspect target and back up before raw migrations. `0018` can fail against populated older schemas; migration reversal does not reverse remote changes. |
+
+Branch-only boundaries differ. [GitHub import](../features/github-import.md) adds server-side fetch/build of caller-provided public repositories: the analysis endpoint is unauthenticated, archive extraction lacks a decompressed-size cap, and Railpack receives secret env values via process arguments. [Metrics](../features/metrics.md) adds agent tokens, webhook destinations and outbound alert delivery: channel listing currently returns full webhook configurations, while agent/DB provisioning and token rotation are not atomic. These are **audit findings**, not properties of the baseline API; address them before merging.
+
+The default branch does not contain production ingress policy, request throttling, a complete frontend production adapter, or a live threat-model test. Do not claim compliance or production hardening based on successful compilation alone. See [branch audit](../audits/branch-audit.md) and the [roadmap](../roadmap.md) for remediation gates.
