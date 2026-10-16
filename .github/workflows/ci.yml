@@ -4,7 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, chore/migrate-frontend-to-bun]
+    # Every pull request, whatever its base branch: security and stacked work
+    # targets feature branches, and those changes must be checked before they
+    # reach main.
+    branches: ['**']
+
+permissions:
+  contents: read
 
 jobs:
   backend:
