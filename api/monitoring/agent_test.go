@@ -178,6 +178,23 @@ func TestRecoverInterruptedEnableRestoresOldAgent(t *testing.T) {
 	}
 }
 
+func TestRemoveMonitoringContainersFailsClosed(t *testing.T) {
+	runner := &sequenceRunner{results: []commandResult{{output: "container-id"}, {err: errors.New("docker permission denied")}}}
+	if err := removeMonitoringContainers(context.Background(), runner); err == nil {
+		t.Fatal("docker removal failure must leave monitoring pending")
+	}
+	if len(runner.commands) != 2 || !strings.Contains(runner.commands[1], "docker rm -f") {
+		t.Fatalf("unexpected commands: %v", runner.commands)
+	}
+	runner = &sequenceRunner{results: []commandResult{{}, {output: "rollback-id"}, {}}}
+	if err := removeMonitoringContainers(context.Background(), runner); err != nil {
+		t.Fatal(err)
+	}
+	if len(runner.commands) != 3 {
+		t.Fatalf("stopped agent cleanup: %v", runner.commands)
+	}
+}
+
 // The agent must never be published on a routable address: loopback plus the SSH
 // tunnel is the whole reason no firewall rule is needed to run it.
 func TestBuildRunCommandPublishesOnLoopbackOnly(t *testing.T) {

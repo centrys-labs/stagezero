@@ -428,9 +428,16 @@ func Disable(ctx context.Context, client *ssh.Client, serverID string) error {
 	if err := proxy.RemoveRoute(client, routeID(serverID)); err != nil {
 		return fmt.Errorf("remove monitoring route: %w", err)
 	}
-	docker := client.DockerBin()
-	_, err := client.Run(ctx, docker+" rm -f "+ContainerName+" "+ContainerName+"-rollback >/dev/null 2>&1 || true")
-	return err
+	return removeMonitoringContainers(ctx, client)
+}
+
+func removeMonitoringContainers(ctx context.Context, client dockerapi.CommandRunner) error {
+	for _, name := range []string{ContainerName, ContainerName + "-rollback"} {
+		if err := removeContainerIfPresent(ctx, client, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func DeleteLocalData(ctx context.Context, client *ssh.Client) error {
