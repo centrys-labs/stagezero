@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -51,6 +53,149 @@ type MonitoringConfig struct {
 	Status        string
 	LastError     string
 	CleanupAt     *time.Time
+}
+
+type MonitoringIntent struct {
+	Config       MonitoringConfig
+	ControlToken string
+	ReaderToken  string
+}
+
+var ErrMonitoringBusy = errors.New("monitoring operation in progress")
+
+// WithServerMonitoringLock serializes remote changes across API replicas. The
+// acquired connection owns the advisory lock until it is explicitly released.
+func WithServerMonitoringLock(ctx context.Context, serverID string, change func() error) (err error) {
+	conn, err := Pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+	var locked bool
+	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock(hashtextextended($1, 741852))`, serverID).Scan(&locked); err != nil {
+		return err
+	}
+	if !locked {
+		return ErrMonitoringBusy
+	}
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		var unlocked bool
+		if unlockErr := conn.QueryRow(cleanupCtx, `SELECT pg_advisory_unlock(hashtextextended($1, 741852))`, serverID).Scan(&unlocked); unlockErr != nil || !unlocked {
+			// A pooled connection must never be returned with a session lock held.
+			_ = conn.Conn().Close(cleanupCtx)
+			if unlockErr == nil {
+				unlockErr = errors.New("advisory lock was not held")
+			}
+			err = errors.Join(err, fmt.Errorf("release monitoring lock: %w", unlockErr))
+		}
+	}()
+	return change()
+}
+
+// StageServerMonitoring keeps the committed credentials in service while an
+// encrypted desired configuration is retried after an interrupted operation.
+func StageServerMonitoring(ctx context.Context, serverID string, intent MonitoringIntent) error {
+	data, err := json.Marshal(intent)
+	if err != nil {
+		return err
+	}
+	ciphertext, err := crypto.Encrypt(string(data))
+	if err != nil {
+		return err
+	}
+	status := "provisioning"
+	if !intent.Config.Enabled {
+		status = "disabling"
+	}
+	result, err := Pool.Exec(ctx, `UPDATE servers SET monitoring_pending = $2, monitoring_pending_fqdn = NULLIF($3, ''),
+		monitoring_status = $4, monitoring_last_error = NULL, monitoring_last_reconciled_at = NOW()
+		WHERE id = $1 AND monitoring_pending IS NULL
+		AND NOT EXISTS (SELECT 1 FROM servers s WHERE s.id <> $1 AND lower(s.monitoring_fqdn) = lower($3))`,
+		serverID, ciphertext, intent.Config.FQDN, status)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrMonitoringBusy
+	}
+	return nil
+}
+
+func PendingServerMonitoring(ctx context.Context, serverID string) (MonitoringIntent, string, error) {
+	var ciphertext string
+	if err := Pool.QueryRow(ctx, `SELECT monitoring_pending FROM servers WHERE id = $1 AND monitoring_pending IS NOT NULL`, serverID).Scan(&ciphertext); err != nil {
+		return MonitoringIntent{}, "", err
+	}
+	text, err := crypto.Decrypt(ciphertext)
+	if err != nil {
+		return MonitoringIntent{}, "", err
+	}
+	var intent MonitoringIntent
+	if err := json.Unmarshal([]byte(text), &intent); err != nil {
+		return MonitoringIntent{}, "", err
+	}
+	return intent, ciphertext, nil
+}
+
+func CommitServerMonitoring(ctx context.Context, serverID, pendingCiphertext string, intent MonitoringIntent) error {
+	control, err := encryptOptional(intent.ControlToken)
+	if err != nil {
+		return err
+	}
+	reader, err := encryptOptional(intent.ReaderToken)
+	if err != nil {
+		return err
+	}
+	var cleanupAt interface{}
+	if intent.Config.CleanupAt != nil {
+		cleanupAt = intent.Config.CleanupAt.UTC()
+	}
+	result, err := Pool.Exec(ctx, `UPDATE servers SET monitoring_enabled = $3, monitoring_port = $4,
+		monitoring_retention_days = $5, monitoring_fqdn = NULLIF($6, ''), monitoring_control_token = $7,
+		monitoring_reader_token = $8, monitoring_status = $9, monitoring_last_reconciled_at = NOW(),
+		monitoring_last_error = NULL, monitoring_cleanup_at = $10, monitoring_pending = NULL,
+		monitoring_pending_fqdn = NULL WHERE id = $1 AND monitoring_pending = $2`,
+		serverID, pendingCiphertext, intent.Config.Enabled, intent.Config.Port, intent.Config.RetentionDays,
+		intent.Config.FQDN, control, reader, intent.Config.Status, cleanupAt)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrMonitoringBusy
+	}
+	return nil
+}
+
+func MarkMonitoringRetry(ctx context.Context, serverID string) error {
+	_, err := Pool.Exec(ctx, `UPDATE servers SET monitoring_last_error = 'monitoring reconciliation pending',
+		monitoring_last_reconciled_at = NOW() WHERE id = $1 AND monitoring_pending IS NOT NULL`, serverID)
+	return err
+}
+
+func ListPendingMonitoring(ctx context.Context) ([]string, error) {
+	rows, err := Pool.Query(ctx, `SELECT id FROM servers WHERE monitoring_pending IS NOT NULL
+		AND monitoring_last_reconciled_at < NOW() - INTERVAL '1 minute' ORDER BY monitoring_last_reconciled_at LIMIT 20`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func ServerMonitoringPending(ctx context.Context, serverID string) (bool, error) {
+	var pending bool
+	err := Pool.QueryRow(ctx, `SELECT monitoring_pending IS NOT NULL FROM servers WHERE id = $1`, serverID).Scan(&pending)
+	return pending, err
 }
 
 func CreateServer(ctx context.Context, name, host string, port int32, sshUser, sshKeyID, workspaceID string) (AppServer, error) {

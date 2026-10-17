@@ -102,6 +102,9 @@ func Enable(ctx context.Context, client *ssh.Client, serverID string, cfg Config
 	if err := ValidateConfig(cfg); err != nil {
 		return err
 	}
+	if err := recoverInterruptedEnable(ctx, client); err != nil {
+		return err
+	}
 
 	if err := prepareMonitoringHost(ctx, client, cfg); err != nil {
 		return err
@@ -109,7 +112,6 @@ func Enable(ctx context.Context, client *ssh.Client, serverID string, cfg Config
 
 	docker := client.DockerBin()
 	rollbackName := ContainerName + "-rollback"
-	_, _ = client.Run(ctx, docker+" rm -f "+rollbackName+" >/dev/null 2>&1 || true")
 	hadOld, err := dockerapi.ContainerExists(ctx, client, ContainerName)
 	if err != nil {
 		return fmt.Errorf("inspect existing monitoring container: %w", err)
@@ -157,6 +159,22 @@ func Enable(ctx context.Context, client *ssh.Client, serverID string, cfg Config
 		return err
 	}
 	return nil
+}
+
+// A process crash can leave the old container parked under the rollback name.
+// Restore it before any new preparation; deleting it would lose the only known
+// working agent when the new container was not successfully committed.
+func recoverInterruptedEnable(ctx context.Context, client dockerapi.CommandRunner) error {
+	rollback := ContainerName + "-rollback"
+	exists, err := dockerapi.ContainerExists(ctx, client, rollback)
+	if err != nil || !exists {
+		return err
+	}
+	if err := removeContainerIfPresent(ctx, client, ContainerName); err != nil {
+		return err
+	}
+	_, err = client.Run(ctx, client.DockerBin()+" rename "+rollback+" "+ContainerName+" && "+client.DockerBin()+" start "+ContainerName)
+	return err
 }
 
 func prepareMonitoringHost(ctx context.Context, client *ssh.Client, cfg Config) error {
@@ -410,9 +428,16 @@ func Disable(ctx context.Context, client *ssh.Client, serverID string) error {
 	if err := proxy.RemoveRoute(client, routeID(serverID)); err != nil {
 		return fmt.Errorf("remove monitoring route: %w", err)
 	}
-	docker := client.DockerBin()
-	_, err := client.Run(ctx, docker+" rm -f "+ContainerName+" "+ContainerName+"-rollback >/dev/null 2>&1 || true")
-	return err
+	return removeMonitoringContainers(ctx, client)
+}
+
+func removeMonitoringContainers(ctx context.Context, client dockerapi.CommandRunner) error {
+	for _, name := range []string{ContainerName, ContainerName + "-rollback"} {
+		if err := removeContainerIfPresent(ctx, client, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func DeleteLocalData(ctx context.Context, client *ssh.Client) error {

@@ -121,6 +121,8 @@ type Server struct {
 	MonitoringLastReconciledAt pgtype.Timestamptz `json:"monitoring_last_reconciled_at"`
 	MonitoringLastError        pgtype.Text        `json:"monitoring_last_error"`
 	MonitoringCleanupAt        pgtype.Timestamptz `json:"monitoring_cleanup_at"`
+	MonitoringPending          pgtype.Text        `json:"monitoring_pending"`
+	MonitoringPendingFqdn      pgtype.Text        `json:"monitoring_pending_fqdn"`
 }
 
 type Service struct {

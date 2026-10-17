@@ -112,33 +112,12 @@ func (s *Server) ConfigureServerMonitoring(w http.ResponseWriter, r *http.Reques
 
 	desired := db.MonitoringConfig{
 		Enabled: true, Port: int32(port), RetentionDays: int32(retentionDays),
-		FQDN: fqdn, Status: "provisioning",
+		FQDN: fqdn, Status: "ready",
 	}
-	previous := monitoringDBConfig(server)
-	if err := db.SetServerMonitoring(r.Context(), id, desired, controlToken, readerToken); err != nil {
-		if isUniqueViolation(err) {
-			respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "fqdn is already in use"})
-		} else {
-			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to save monitoring configuration"})
-		}
-		return
-	}
-
-	client, err := monitoringClient(server)
-	if err == nil {
-		defer client.Close()
-		err = monitoring.Enable(r.Context(), client, id, agentConfig)
-	}
-	if err != nil {
-		previous.Status = "error"
-		previous.LastError = err.Error()
-		_ = db.SetServerMonitoring(r.Context(), id, previous, server.ControlToken, server.ReaderToken)
-		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: "monitoring setup failed: " + err.Error()})
-		return
-	}
-	desired.Status = "ready"
-	if err := db.SetServerMonitoring(r.Context(), id, desired, controlToken, readerToken); err != nil {
-		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "monitoring started but status update failed"})
+	if err := monitoring.ChangeServerMonitoring(r.Context(), server, db.MonitoringIntent{
+		Config: desired, ControlToken: controlToken, ReaderToken: readerToken,
+	}); err != nil {
+		monitoringChangeError(w, err)
 		return
 	}
 	updated, err := db.GetServerByID(r.Context(), id)
@@ -159,6 +138,15 @@ func (s *Server) DisableServerMonitoring(w http.ResponseWriter, r *http.Request,
 	if !ok {
 		return
 	}
+	pending, err := db.ServerMonitoringPending(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to check monitoring state"})
+		return
+	}
+	if pending {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress"})
+		return
+	}
 	if !server.Monitoring.Enabled {
 		current, err := db.GetServerByID(r.Context(), id)
 		if err != nil {
@@ -168,25 +156,15 @@ func (s *Server) DisableServerMonitoring(w http.ResponseWriter, r *http.Request,
 		respond.JSON(w, http.StatusOK, serverToResponse(current))
 		return
 	}
-	client, err := monitoringClient(server)
-	if err == nil {
-		defer client.Close()
-		err = monitoring.Disable(r.Context(), client, id)
-	}
 	state := monitoringDBConfig(server)
-	if err != nil {
-		state.Status = "error"
-		state.LastError = err.Error()
-		_ = db.SetServerMonitoring(r.Context(), id, state, server.ControlToken, server.ReaderToken)
-		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: "monitoring disable failed: " + err.Error()})
-		return
-	}
 	cleanupAt := time.Now().UTC().Add(7 * 24 * time.Hour)
 	state.Enabled = false
 	state.Status = "disabled"
 	state.CleanupAt = &cleanupAt
-	if err := db.SetServerMonitoring(r.Context(), id, state, server.ControlToken, server.ReaderToken); err != nil {
-		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "monitoring stopped but status update failed"})
+	if err := monitoring.ChangeServerMonitoring(r.Context(), server, db.MonitoringIntent{
+		Config: state, ControlToken: server.ControlToken, ReaderToken: server.ReaderToken,
+	}); err != nil {
+		monitoringChangeError(w, err)
 		return
 	}
 	updated, err := db.GetServerByID(r.Context(), id)
@@ -205,6 +183,15 @@ func (s *Server) GetServerMonitoringCredentials(w http.ResponseWriter, r *http.R
 	}
 	server, ok := s.workspaceServerWithKey(w, r, id, sc.WorkspaceID)
 	if !ok {
+		return
+	}
+	pending, err := db.ServerMonitoringPending(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to check monitoring state"})
+		return
+	}
+	if pending {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress"})
 		return
 	}
 	if server.ReaderToken == "" {
@@ -234,31 +221,23 @@ func (s *Server) RotateServerMonitoringReaderToken(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Reprovisioned before the new token is stored: the agent only learns a token
-	// through its environment, so a failure here leaves the old one working
-	// everywhere rather than stranding the database ahead of the server.
-	agentConfig := monitoring.Config{
-		Image:         config.C.MonitoringImage,
-		HostPort:      int(server.Monitoring.Port),
-		RetentionDays: int(server.Monitoring.RetentionDays),
-		FQDN:          monitoringFQDN(server),
-		ControlToken:  server.ControlToken,
-		ReaderToken:   readerToken,
-	}
-	client, err := monitoringClient(server)
-	if err == nil {
-		defer client.Close()
-		err = monitoring.Enable(r.Context(), client, id, agentConfig)
-	}
-	if err != nil {
-		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: "reader token rotation failed: " + err.Error()})
-		return
-	}
-	if err := db.SetServerMonitoring(r.Context(), id, monitoringDBConfig(server), server.ControlToken, readerToken); err != nil {
-		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "agent restarted but the new reader token could not be saved"})
+	state := monitoringDBConfig(server)
+	state.Status = "ready"
+	if err := monitoring.ChangeServerMonitoring(r.Context(), server, db.MonitoringIntent{
+		Config: state, ControlToken: server.ControlToken, ReaderToken: readerToken,
+	}); err != nil {
+		monitoringChangeError(w, err)
 		return
 	}
 	respond.JSON(w, http.StatusOK, monitoringCredentials(server, readerToken))
+}
+
+func monitoringChangeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, db.ErrMonitoringBusy) || isUniqueViolation(err) {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress or fqdn is already in use"})
+		return
+	}
+	respond.JSON(w, http.StatusServiceUnavailable, gen.ErrorResponse{Error: "monitoring change pending; the server will be retried"})
 }
 
 func monitoringCredentials(server db.ServerWithKey, readerToken string) gen.ServerMonitoringCredentialsResponse {
@@ -280,7 +259,15 @@ func (s *Server) DeleteServerMonitoringHistory(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-	var err error
+	pending, err := db.ServerMonitoringPending(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to check monitoring state"})
+		return
+	}
+	if pending {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress"})
+		return
+	}
 	if server.Monitoring.Enabled {
 		err = monitoring.DeleteHistory(r.Context(), monitoringTarget(server), server.ControlToken)
 	} else {

@@ -2,15 +2,51 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"github.com/centrys-labs/stagezero/telemetry"
 	"time"
 
 	"github.com/centrys-labs/stagezero/db"
 	"github.com/centrys-labs/stagezero/monitoring"
 	"github.com/centrys-labs/stagezero/ssh"
+	"github.com/jackc/pgx/v5"
 )
 
 const monitoringCleanupInterval = time.Hour
+
+// Pending monitoring changes survive API cancellation and process restarts.
+func StartMonitoringReconciler(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+	for {
+		reconcileMonitoring(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func reconcileMonitoring(ctx context.Context) {
+	ids, err := db.ListPendingMonitoring(ctx)
+	if err != nil {
+		telemetry.Printf("Monitoring reconciliation: list pending changes failed")
+		return
+	}
+	for _, id := range ids {
+		if ctx.Err() != nil {
+			return
+		}
+		attempt, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		err := monitoring.RetryPendingServerMonitoring(attempt, id)
+		cancel()
+		if err != nil && !errors.Is(err, db.ErrMonitoringBusy) && !errors.Is(err, pgx.ErrNoRows) {
+			// SSH output can include secrets. Never log the raw error.
+			telemetry.Printf("Monitoring reconciliation pending for server=%s", id)
+		}
+	}
+}
 
 func StartMonitoringCleanup(ctx context.Context) {
 	ticker := time.NewTicker(monitoringCleanupInterval)
