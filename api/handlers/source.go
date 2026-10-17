@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/centrys-labs/stagezero/auth"
 	"github.com/centrys-labs/stagezero/gen"
 	"github.com/centrys-labs/stagezero/respond"
 	"github.com/centrys-labs/stagezero/source"
@@ -23,9 +25,58 @@ const sourceAnalysisTimeout = 90 * time.Second
 const sourceResolveTimeout = 15 * time.Second
 
 func (s *Server) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
+	sc, ok := auth.GetSessionContext(r)
+	if !ok || sc.UserID == "" {
+		respond.JSON(w, http.StatusUnauthorized, gen.ErrorResponse{Error: "authentication required"})
+		return
+	}
+	limits := s.SourceLimits
+	if limits.RequestBytes == 0 {
+		limits = source.DefaultAnalysisLimits()
+	}
+	s.sourceGateOnce.Do(func() { s.sourceGate = source.NewAnalysisGate(limits) })
+	release, allowed := s.sourceGate.Enter(sc.UserID)
+	if !allowed {
+		respond.JSON(w, http.StatusTooManyRequests, gen.ErrorResponse{Error: "source analysis rate or concurrency limit reached; retry later"})
+		return
+	}
+	defer release()
+	ctx, cancel := context.WithTimeout(r.Context(), limits.Timeout)
+	defer cancel()
+	r = r.WithContext(ctx)
+	// Request context cancellation does not interrupt a client that stalls in
+	// the middle of sending JSON; bound socket reads too.
+	controller := http.NewResponseController(w)
+	if err := controller.SetReadDeadline(time.Now().Add(limits.Timeout)); err == nil {
+		defer controller.SetReadDeadline(time.Time{})
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limits.RequestBytes)
 	var req gen.AnalyzeSourceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && !errors.Is(err, io.EOF) {
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&req); err != nil {
+		if ctx.Err() != nil || errors.Is(err, os.ErrDeadlineExceeded) {
+			s.respondSourceAnalysisError(w, ctx, source.Repo{}, limits.Timeout, err)
+			return
+		}
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			respond.JSON(w, http.StatusRequestEntityTooLarge, gen.ErrorResponse{Error: "request body too large"})
+			return
+		}
 		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		if ctx.Err() != nil || errors.Is(err, os.ErrDeadlineExceeded) {
+			s.respondSourceAnalysisError(w, ctx, source.Repo{}, limits.Timeout, err)
+			return
+		}
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			respond.JSON(w, http.StatusRequestEntityTooLarge, gen.ErrorResponse{Error: "request body too large"})
+		} else {
+			respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "invalid request body"})
+		}
 		return
 	}
 
@@ -42,11 +93,9 @@ func (s *Server) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), sourceAnalysisTimeout)
-	defer cancel()
 	analysis, err := s.analyzeSource(ctx, repo)
 	if err != nil {
-		s.respondSourceAnalysisError(w, ctx, repo, sourceAnalysisTimeout, err)
+		s.respondSourceAnalysisError(w, ctx, repo, limits.Timeout, err)
 		return
 	}
 
@@ -70,7 +119,11 @@ func (s *Server) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
 func (s *Server) analyzeSource(ctx context.Context, repo source.Repo) (source.Analysis, error) {
 	analyzer := s.SourceAnalyzer
 	if analyzer == nil {
-		analyzer = source.DefaultAnalyzer{}
+		limits := s.SourceLimits
+		if limits.RequestBytes == 0 {
+			limits = source.DefaultAnalysisLimits()
+		}
+		analyzer = source.DefaultAnalyzer{Limits: limits}
 	}
 	return analyzer.Analyze(ctx, repo)
 }
@@ -81,7 +134,7 @@ func (s *Server) analyzeSource(ctx context.Context, repo source.Repo) (source.An
 // is worse than one that names none.
 func (s *Server) respondSourceAnalysisError(w http.ResponseWriter, ctx context.Context, repo source.Repo, limit time.Duration, err error) {
 	switch {
-	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+	case errors.Is(ctx.Err(), context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
 		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: fmt.Sprintf("reading the repository exceeded the %d second limit", int(limit.Seconds()))})
 	case errors.Is(err, source.ErrInvalidBranch):
 		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "invalid branch name"})
@@ -90,6 +143,8 @@ func (s *Server) respondSourceAnalysisError(w http.ResponseWriter, ctx context.C
 	case errors.Is(err, source.ErrBranchNotFound):
 		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: fmt.Sprintf("branch %q was not found", repo.Branch)})
 	case errors.Is(err, source.ErrSourceTooLarge):
+		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: err.Error()})
+	case errors.Is(err, source.ErrOutputTooLarge):
 		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: err.Error()})
 	case errors.Is(err, source.ErrUnsupportedSource):
 		respond.JSON(w, http.StatusUnprocessableEntity, gen.ErrorResponse{Error: err.Error()})

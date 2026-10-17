@@ -195,6 +195,8 @@ paths:
     post:
       operationId: analyzeSource
       summary: Analyze a public GitHub repository with Railpack
+      security:
+        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -222,6 +224,18 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "422":
           description: Railpack could not determine how to build the repository
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Request body exceeds the configured limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Analysis rate or concurrency limit reached
           content:
             application/json:
               schema:

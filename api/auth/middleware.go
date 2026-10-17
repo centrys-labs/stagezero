@@ -27,6 +27,10 @@ func GetSessionContext(r *http.Request) (SessionContext, bool) {
 	return sc, ok
 }
 
+func WithSessionContext(ctx context.Context, sc SessionContext) context.Context {
+	return context.WithValue(ctx, sessionContextKey, sc)
+}
+
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(CookieName)
@@ -67,7 +71,7 @@ func RequireAuth(next http.Handler) http.Handler {
 			WorkspaceID:   session.WorkspaceID,
 			WorkspaceRole: membership.Role,
 		}
-		ctx := context.WithValue(r.Context(), sessionContextKey, sc)
+		ctx := WithSessionContext(r.Context(), sc)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -92,4 +96,3 @@ func RequireRole(roles ...string) func(http.Handler) http.Handler {
 		})
 	}
 }
-

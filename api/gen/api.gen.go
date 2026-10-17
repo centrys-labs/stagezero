@@ -1981,6 +1981,12 @@ func (siw *ServerInterfaceWrapper) GetServicePendingChanges(w http.ResponseWrite
 // AnalyzeSource operation middleware
 func (siw *ServerInterfaceWrapper) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
 
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AnalyzeSource(w, r)
 	}))
