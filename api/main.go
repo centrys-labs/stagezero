@@ -67,6 +67,7 @@ func main() {
 	go jobs.StartDomainReconciler(ctx)
 	go jobs.StartDeploymentReconciler(ctx)
 	go jobs.StartMonitoringCleanup(ctx)
+	go jobs.StartMonitoringReconciler(ctx)
 	go jobs.StartAlertEvaluator(ctx)
 
 	srv := &http.Server{Addr: ":8080", Handler: telemetry.Default.Middleware(mux)}

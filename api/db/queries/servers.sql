@@ -57,6 +57,7 @@ SELECT s.id, s.name, s.host, s.port, s.ssh_user, s.ssh_key_id, s.workspace_id, s
 FROM servers s
 JOIN ssh_keys k ON k.id = s.ssh_key_id
 WHERE s.monitoring_enabled = FALSE
+  AND s.monitoring_pending IS NULL
   AND s.monitoring_cleanup_at IS NOT NULL
   AND s.monitoring_cleanup_at <= NOW();
 

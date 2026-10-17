@@ -134,6 +134,10 @@ func observeServer(ctx context.Context, serverID string) (alerts.Observation, er
 		return alerts.Observation{TargetID: serverID, TargetName: serverID}, err
 	}
 	observation := alerts.Observation{TargetID: server.ID, TargetName: server.Name, ObservedAt: time.Now().UTC()}
+	if server.Monitoring.Status == "provisioning" || server.Monitoring.Status == "disabling" {
+		observation.Suppressed = true
+		return observation, nil
+	}
 	if server.Monitoring.Enabled {
 		latest, err := monitoring.GetServerLatest(ctx, monitoringTarget(server), server.ReaderToken)
 		if err != nil {
@@ -201,6 +205,10 @@ func observeService(ctx context.Context, serviceID string) (alerts.Observation, 
 	server, err := db.GetServerWithKey(ctx, service.ServerID)
 	if err != nil {
 		return observation, err
+	}
+	if server.Monitoring.Status == "provisioning" || server.Monitoring.Status == "disabling" {
+		observation.Suppressed = true
+		return observation, nil
 	}
 	containerName := ContainerNameForDeployment(config, deployment.ID)
 	if server.Monitoring.Enabled {

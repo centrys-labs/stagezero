@@ -163,6 +163,21 @@ func TestEnableStateCleanup(t *testing.T) {
 	})
 }
 
+func TestRecoverInterruptedEnableRestoresOldAgent(t *testing.T) {
+	runner := &sequenceRunner{results: []commandResult{{output: "old-id"}, {output: "new-id"}, {}, {}}}
+	if err := recoverInterruptedEnable(context.Background(), runner); err != nil {
+		t.Fatal(err)
+	}
+	if len(runner.commands) != 4 || !strings.Contains(runner.commands[2], "docker rm -f 'uploy-monitor'") ||
+		runner.commands[3] != "docker rename uploy-monitor-rollback uploy-monitor && docker start uploy-monitor" {
+		t.Fatalf("rollback was not recovered: %#v", runner.commands)
+	}
+	failed := &sequenceRunner{results: []commandResult{{output: "old-id"}, {err: errors.New("docker unavailable")}}}
+	if err := recoverInterruptedEnable(context.Background(), failed); err == nil || len(failed.commands) != 2 {
+		t.Fatalf("removed rollback after failed inspection: %v, %#v", err, failed.commands)
+	}
+}
+
 // The agent must never be published on a routable address: loopback plus the SSH
 // tunnel is the whole reason no firewall rule is needed to run it.
 func TestBuildRunCommandPublishesOnLoopbackOnly(t *testing.T) {
