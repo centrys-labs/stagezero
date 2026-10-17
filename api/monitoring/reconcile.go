@@ -70,7 +70,12 @@ func applyPendingServerMonitoring(ctx context.Context, id string, apply monitori
 	}
 	commitCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
-	return db.CommitServerMonitoring(commitCtx, id, ciphertext, intent)
+	if err := db.CommitServerMonitoring(commitCtx, id, ciphertext, intent); err != nil {
+		retryCtx, retryCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer retryCancel()
+		return errors.Join(err, db.MarkMonitoringRetry(retryCtx, id))
+	}
+	return nil
 }
 
 func applyServerMonitoring(ctx context.Context, server db.ServerWithKey, intent db.MonitoringIntent) error {

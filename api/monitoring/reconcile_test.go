@@ -181,8 +181,8 @@ func TestMonitoringChangeSurvivesFailuresAndRetries(t *testing.T) {
 			t.Fatal("conflicting FQDN committed")
 		}
 		current, err := db.GetServerWithKey(ctx, server.ID)
-		if err != nil || current.ReaderToken != "old-reader" {
-			t.Fatalf("rotated secret was published after failed commit: %v, %q", err, current.ReaderToken)
+		if err != nil || current.ReaderToken != "old-reader" || current.Monitoring.LastError == nil || strings.Contains(*current.Monitoring.LastError, "rotated-reader") {
+			t.Fatalf("rotated secret was published or logged after failed commit: %v, %#v", err, current.Monitoring)
 		}
 		if _, _, err := db.PendingServerMonitoring(ctx, server.ID); err != nil {
 			t.Fatalf("pending rotation was lost: %v", err)
