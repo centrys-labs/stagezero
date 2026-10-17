@@ -21,7 +21,10 @@ func decodeJSON(r *http.Request, value interface{}) error {
 }
 
 func (s *Server) ListNotificationChannels(w http.ResponseWriter, r *http.Request) {
-	sc, _ := auth.GetSessionContext(r)
+	sc, ok := notificationSession(w, r, false)
+	if !ok {
+		return
+	}
 	channels, err := db.ListNotificationChannels(r.Context(), sc.WorkspaceID)
 	if err != nil {
 		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to list notification channels"})
@@ -35,9 +38,8 @@ func (s *Server) ListNotificationChannels(w http.ResponseWriter, r *http.Request
 }
 
 func (s *Server) CreateNotificationChannel(w http.ResponseWriter, r *http.Request) {
-	sc, _ := auth.GetSessionContext(r)
-	if !canManageAlerts(sc.WorkspaceRole) {
-		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+	sc, ok := notificationSession(w, r, true)
+	if !ok {
 		return
 	}
 	var req gen.CreateNotificationChannelRequest
@@ -63,18 +65,8 @@ func (s *Server) CreateNotificationChannel(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) UpdateNotificationChannel(w http.ResponseWriter, r *http.Request, id string) {
-	sc, _ := auth.GetSessionContext(r)
-	if !canManageAlerts(sc.WorkspaceRole) {
-		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
-		return
-	}
-	channel, err := db.GetNotificationChannel(r.Context(), id)
-	if err != nil {
-		notFoundOrInternal(w, err, "notification channel not found")
-		return
-	}
-	if channel.WorkspaceID != sc.WorkspaceID {
-		respond.JSON(w, http.StatusNotFound, gen.ErrorResponse{Error: "notification channel not found"})
+	sc, ok := notificationSession(w, r, true)
+	if !ok {
 		return
 	}
 	var req gen.UpdateNotificationChannelRequest
@@ -82,20 +74,18 @@ func (s *Server) UpdateNotificationChannel(w http.ResponseWriter, r *http.Reques
 		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "invalid request body"})
 		return
 	}
-	name, kind, cfg, err := validateChannelRequest(req.Name, string(req.Type), req.Config)
-	if err != nil {
-		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: err.Error()})
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "name is required"})
 		return
 	}
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	} else {
-		enabled = channel.Enabled
-	}
-	updated, err := db.UpdateNotificationChannel(r.Context(), id, name, kind, cfg, enabled)
+	updated, err := db.UpdateNotificationChannel(r.Context(), sc.WorkspaceID, id, name, string(req.Type), req.Config, req.Enabled)
 	if err != nil {
-		if isUniqueViolation(err) {
+		if errors.Is(err, db.ErrInvalidChannelConfig) {
+			respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: err.Error()})
+		} else if errors.Is(err, pgx.ErrNoRows) {
+			respond.JSON(w, http.StatusNotFound, gen.ErrorResponse{Error: "notification channel not found"})
+		} else if isUniqueViolation(err) {
 			respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "channel name is already in use"})
 		} else {
 			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to update notification channel"})
@@ -106,9 +96,8 @@ func (s *Server) UpdateNotificationChannel(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) DeleteNotificationChannel(w http.ResponseWriter, r *http.Request, id string) {
-	sc, _ := auth.GetSessionContext(r)
-	if !canManageAlerts(sc.WorkspaceRole) {
-		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+	sc, ok := notificationSession(w, r, true)
+	if !ok {
 		return
 	}
 	channel, err := db.GetNotificationChannel(r.Context(), id)
@@ -128,9 +117,8 @@ func (s *Server) DeleteNotificationChannel(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *Server) TestNotificationChannel(w http.ResponseWriter, r *http.Request, id string) {
-	sc, _ := auth.GetSessionContext(r)
-	if !canManageAlerts(sc.WorkspaceRole) {
-		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+	sc, ok := notificationSession(w, r, true)
+	if !ok {
 		return
 	}
 	channel, err := db.GetNotificationChannel(r.Context(), id)
@@ -146,7 +134,7 @@ func (s *Server) TestNotificationChannel(w http.ResponseWriter, r *http.Request,
 		Title: "[StageZero] Test notification", Body: "This channel is configured correctly.", StartedAt: time.Now().UTC(),
 	})
 	if err != nil {
-		respond.JSON(w, http.StatusBadGateway, gen.ErrorResponse{Error: "notification test failed: " + err.Error()})
+		respond.JSON(w, http.StatusBadGateway, gen.ErrorResponse{Error: "notification test failed"})
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -341,28 +329,29 @@ func validateChannelRequest(name, kind string, config gen.NotificationChannelCon
 	if name == "" {
 		return "", "", nil, errors.New("name is required")
 	}
-	values := map[string]interface{}(config)
-	if err := alerts.ValidateChannelConfig(kind, values); err != nil {
+	values, err := alerts.MergeChannelConfig("", kind, nil, config)
+	if err != nil {
 		return "", "", nil, err
 	}
 	return name, kind, values, nil
 }
 
 func notificationChannelResponse(channel db.NotificationChannel) gen.NotificationChannelResponse {
-	return gen.NotificationChannelResponse{Id: channel.ID, Name: channel.Name, Type: gen.NotificationChannelType(channel.Type), Enabled: channel.Enabled, Config: publicChannelConfig(channel.Config), CreatedAt: channel.CreatedAt, UpdatedAt: channel.UpdatedAt}
+	config, configured := alerts.PublicChannelConfig(channel.Type, channel.Config)
+	return gen.NotificationChannelResponse{Id: channel.ID, Name: channel.Name, Type: gen.NotificationChannelType(channel.Type), Enabled: channel.Enabled, Config: config, ConfiguredCredentials: configured, CreatedAt: channel.CreatedAt, UpdatedAt: channel.UpdatedAt}
 }
 
-func publicChannelConfig(config map[string]interface{}) gen.NotificationChannelConfig {
-	public := make(gen.NotificationChannelConfig, len(config))
-	for key, value := range config {
-		lower := strings.ToLower(key)
-		if strings.Contains(lower, "token") || strings.Contains(lower, "password") || strings.Contains(lower, "secret") || strings.Contains(lower, "api_key") {
-			public[key] = "***"
-			continue
-		}
-		public[key] = value
+func notificationSession(w http.ResponseWriter, r *http.Request, manage bool) (auth.SessionContext, bool) {
+	sc, ok := auth.GetSessionContext(r)
+	if !ok || sc.UserID == "" || sc.WorkspaceID == "" {
+		respond.JSON(w, http.StatusUnauthorized, gen.ErrorResponse{Error: "authentication required"})
+		return sc, false
 	}
-	return public
+	if manage && !canManageAlerts(sc.WorkspaceRole) {
+		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+		return sc, false
+	}
+	return sc, true
 }
 
 func alertRuleResponse(rule db.AlertRule) gen.AlertRuleResponse {

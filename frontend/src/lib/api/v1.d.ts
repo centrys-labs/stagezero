@@ -835,6 +835,7 @@ export interface components {
 			type: components['schemas']['NotificationChannelType'];
 			config: components['schemas']['NotificationChannelConfig'];
 		};
+		/** @description Omitted credential fields retain their stored values when the type is unchanged. A nonempty string replaces a credential; null removes an optional credential. Required credentials cannot be removed. Changing type requires new credentials. */
 		UpdateNotificationChannelRequest: components['schemas']['CreateNotificationChannelRequest'] & {
 			enabled?: boolean;
 		};
@@ -843,7 +844,10 @@ export interface components {
 			name: string;
 			type: components['schemas']['NotificationChannelType'];
 			enabled: boolean;
+			/** @description Only explicitly allowlisted non-secret fields; credentials are never returned. */
 			config: components['schemas']['NotificationChannelConfig'];
+			/** @description Names of configured credentials, never their values. */
+			configured_credentials: string[];
 			/** Format: date-time */
 			created_at: string;
 			/** Format: date-time */

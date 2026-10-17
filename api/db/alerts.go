@@ -3,9 +3,11 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/centrys-labs/stagezero/alerts"
 	"github.com/centrys-labs/stagezero/crypto"
 	"github.com/centrys-labs/stagezero/db/sqlcgen"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -21,6 +23,8 @@ type NotificationChannel struct {
 	CreatedAt   time.Time              `json:"created_at"`
 	UpdatedAt   time.Time              `json:"updated_at"`
 }
+
+var ErrInvalidChannelConfig = errors.New("invalid notification channel configuration")
 
 type AlertRule struct {
 	ID              string    `json:"id"`
@@ -90,15 +94,40 @@ func GetNotificationChannel(ctx context.Context, id string) (NotificationChannel
 	return notificationChannelFromRow(row)
 }
 
-func UpdateNotificationChannel(ctx context.Context, id, name, kind string, config map[string]interface{}, enabled bool) (NotificationChannel, error) {
+func UpdateNotificationChannel(ctx context.Context, workspaceID, id, name, kind string, patch map[string]interface{}, enabled *bool) (NotificationChannel, error) {
+	tx, err := Pool.Begin(ctx)
+	if err != nil {
+		return NotificationChannel{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var previousType, stored string
+	var active bool
+	if err := tx.QueryRow(ctx, `SELECT type, config_ciphertext, enabled FROM notification_channels WHERE id = $1 AND workspace_id = $2 FOR UPDATE`, id, workspaceID).Scan(&previousType, &stored, &active); err != nil {
+		return NotificationChannel{}, err
+	}
+	previous, err := decodeChannelConfig(stored)
+	if err != nil {
+		return NotificationChannel{}, err
+	}
+	config, err := alerts.MergeChannelConfig(previousType, kind, previous, patch)
+	if err != nil {
+		return NotificationChannel{}, fmt.Errorf("%w: %v", ErrInvalidChannelConfig, err)
+	}
 	ciphertext, err := encodeChannelConfig(config)
 	if err != nil {
 		return NotificationChannel{}, err
 	}
-	row, err := Queries.UpdateNotificationChannel(ctx, sqlcgen.UpdateNotificationChannelParams{
-		ID: id, Name: name, Type: kind, ConfigCiphertext: ciphertext, Enabled: enabled,
+	if enabled != nil {
+		active = *enabled
+	}
+	row, err := Queries.WithTx(tx).UpdateNotificationChannel(ctx, sqlcgen.UpdateNotificationChannelParams{
+		ID: id, Name: name, Type: kind, ConfigCiphertext: ciphertext, Enabled: active,
 	})
 	if err != nil {
+		return NotificationChannel{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return NotificationChannel{}, err
 	}
 	return notificationChannelFromRow(row)
