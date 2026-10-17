@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -132,6 +133,37 @@ func (c *Client) Run(ctx context.Context, command string) (string, error) {
 		return "", err
 	}
 	defer session.Close()
+
+	type result struct {
+		output []byte
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		output, runErr := session.CombinedOutput(command)
+		done <- result{output: output, err: runErr}
+	}()
+
+	select {
+	case res := <-done:
+		return strings.TrimSpace(string(res.output)), res.err
+	case <-ctx.Done():
+		_ = session.Close()
+		<-done
+		return "", ctx.Err()
+	}
+}
+
+// RunWithInput runs command with stdin fed from input. Secrets that belong in a
+// file on the remote travel here rather than on the command line, where every
+// user on that host could read them out of the process table.
+func (c *Client) RunWithInput(ctx context.Context, command string, input []byte) (string, error) {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+	session.Stdin = bytes.NewReader(input)
 
 	type result struct {
 		output []byte
