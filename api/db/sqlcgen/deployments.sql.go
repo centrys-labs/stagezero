@@ -247,6 +247,75 @@ func (q *Queries) ListDeploymentsByService(ctx context.Context, arg ListDeployme
 	return items, nil
 }
 
+const listDeploymentsByServiceInWindow = `-- name: ListDeploymentsByServiceInWindow :many
+WITH service_deployments AS (
+    SELECT d.id, d.status, d.workspace_id, d.service_id, d.created_at,
+           COALESCE((SELECT MIN(l.created_at) FROM deployment_logs l WHERE l.deployment_id = d.id), d.created_at) AS started_at,
+           COALESCE((SELECT MAX(l.created_at)::timestamptz FROM deployment_logs l WHERE l.deployment_id = d.id), d.created_at) AS completed_at
+    FROM deployments d
+    WHERE d.service_id = $1
+), successful AS (
+    SELECT id, started_at,
+           LEAD(started_at) OVER (ORDER BY created_at ASC, id ASC) AS superseded_at
+    FROM service_deployments
+    WHERE status = 'success'
+)
+SELECT d.id, d.status::text AS status, d.workspace_id, d.service_id, d.created_at, d.started_at, d.completed_at
+FROM service_deployments d
+LEFT JOIN successful s ON s.id = d.id
+WHERE d.created_at BETWEEN $2::timestamptz AND $3::timestamptz
+   OR (s.id IS NOT NULL AND s.started_at <= $3::timestamptz
+       AND (s.superseded_at IS NULL OR s.superseded_at >= $2::timestamptz))
+ORDER BY d.created_at ASC, d.id ASC
+`
+
+type ListDeploymentsByServiceInWindowParams struct {
+	ServiceID   string    `json:"service_id"`
+	WindowStart time.Time `json:"window_start"`
+	WindowEnd   time.Time `json:"window_end"`
+}
+
+type ListDeploymentsByServiceInWindowRow struct {
+	ID          string      `json:"id"`
+	Status      string      `json:"status"`
+	WorkspaceID pgtype.Text `json:"workspace_id"`
+	ServiceID   string      `json:"service_id"`
+	CreatedAt   time.Time   `json:"created_at"`
+	StartedAt   time.Time   `json:"started_at"`
+	CompletedAt time.Time   `json:"completed_at"`
+}
+
+// Include attempts created inside the window as markers, and earlier successful
+// deployments that could have samples inside it. Failed attempts do not replace
+// the last successful container.
+func (q *Queries) ListDeploymentsByServiceInWindow(ctx context.Context, arg ListDeploymentsByServiceInWindowParams) ([]ListDeploymentsByServiceInWindowRow, error) {
+	rows, err := q.db.Query(ctx, listDeploymentsByServiceInWindow, arg.ServiceID, arg.WindowStart, arg.WindowEnd)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDeploymentsByServiceInWindowRow{}
+	for rows.Next() {
+		var i ListDeploymentsByServiceInWindowRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.WorkspaceID,
+			&i.ServiceID,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInProgressDeploymentIDs = `-- name: ListInProgressDeploymentIDs :many
 SELECT id
 FROM deployments

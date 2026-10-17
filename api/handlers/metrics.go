@@ -242,15 +242,12 @@ func (s *Server) GetProjectMetricsHistory(w http.ResponseWriter, r *http.Request
 	to := time.Now().UTC()
 	for serviceIndex, service := range services {
 		response.Services[serviceIndex] = gen.ServiceMetricsHistory{ServiceId: service.ID, Name: service.Name, Deployments: []gen.DeploymentMetricsHistory{}}
-		deployments, err := db.ListDeploymentsByService(r.Context(), service.ID, 100)
+		deployments, err := db.ListDeploymentsByServiceInWindow(r.Context(), service.ID, from, to)
 		if err != nil {
-			telemetry.Printf("ListDeploymentsByService service=%s error: %v", service.ID, err)
+			telemetry.Printf("ListDeploymentsByServiceInWindow service=%s error: %v", service.ID, err)
 			continue
 		}
 		for _, deployment := range deployments {
-			if deployment.CreatedAt.Before(from) || deployment.CreatedAt.After(to) {
-				continue
-			}
 			deploymentConfig, configErr := db.GetDeploymentConfig(r.Context(), deployment.ID)
 			image := ""
 			if configErr == nil {
@@ -269,6 +266,12 @@ func (s *Server) GetProjectMetricsHistory(w http.ResponseWriter, r *http.Request
 			})
 		}
 	}
+	sort.Slice(response.DeploymentMarkers, func(i, j int) bool {
+		if response.DeploymentMarkers[i].At.Equal(response.DeploymentMarkers[j].At) {
+			return response.DeploymentMarkers[i].DeploymentId < response.DeploymentMarkers[j].DeploymentId
+		}
+		return response.DeploymentMarkers[i].At.Before(response.DeploymentMarkers[j].At)
+	})
 	for serverID, observations := range byServer {
 		s.collectServerHistory(r.Context(), serverID, observations, response.Services, from, to, maxPoints)
 	}
