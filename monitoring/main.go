@@ -299,7 +299,12 @@ func (c *collector) collect(ctx context.Context, forcePersist bool) {
 		log.Printf("collect metrics: %v", err)
 	}
 	c.mu.Lock()
-	c.latest = samples
+	if err == nil {
+		// Keep the last good samples on a failed read: publishing an empty set
+		// would look like every service stopped, and consumers cannot tell it
+		// apart from a real stop.
+		c.latest = samples
+	}
 	if serverErr == nil {
 		c.server = server
 	}

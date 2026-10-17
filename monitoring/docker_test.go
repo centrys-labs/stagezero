@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -16,6 +17,8 @@ type fakeDockerAPI struct {
 	inspections map[string]dockerInspect
 	stats       map[string]dockerStats
 	podmanRun   bool
+	listErr     error
+	statsErr    map[string]error
 
 	mu          sync.Mutex
 	activeCalls int
@@ -39,6 +42,9 @@ func (f *fakeDockerAPI) leave() {
 }
 
 func (f *fakeDockerAPI) listContainers(context.Context) ([]dockerContainer, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
 	return f.containers, nil
 }
 
@@ -53,6 +59,9 @@ func (f *fakeDockerAPI) containerStats(_ context.Context, id string) (dockerStat
 	f.enter()
 	defer f.leave()
 	time.Sleep(f.delay)
+	if err := f.statsErr[id]; err != nil {
+		return dockerStats{}, err
+	}
 	return f.stats[id], nil
 }
 
@@ -175,6 +184,45 @@ func TestMemoryUsageRejectsMalformedValues(t *testing.T) {
 	stats.MemoryStats.Usage = maxMemoryUsage + 1
 	if _, _, ok := memoryUsage(stats); ok {
 		t.Fatal("expected oversized memory stats to be rejected")
+	}
+}
+
+func TestCollectDockerSamplesDropsIncompleteSamples(t *testing.T) {
+	now := time.Date(2026, time.August, 18, 12, 0, 0, 0, time.UTC)
+	badStats := testDockerStats(now, 100, 200, 0, 0, 100, 101, 1_000, 1, 1)
+	fake := &fakeDockerAPI{
+		containers: []dockerContainer{
+			{ID: "stats-error", State: "running", Labels: map[string]string{"stagezero.deployment_id": "deployment-error"}},
+			{ID: "bad-memory", State: "running", Labels: map[string]string{"stagezero.deployment_id": "deployment-bad"}},
+			{ID: "stopped", State: "exited", Labels: map[string]string{"stagezero.deployment_id": "deployment-stopped"}},
+		},
+		stats:    map[string]dockerStats{"bad-memory": badStats},
+		statsErr: map[string]error{"stats-error": context.DeadlineExceeded},
+	}
+
+	got, err := collectDockerSamples(context.Background(), fake, newDockerMetricTracker(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].DeploymentID != "deployment-stopped" {
+		t.Fatalf("incomplete running samples were published: %+v", got)
+	}
+}
+
+func TestCollectorRetainsLatestOnDockerError(t *testing.T) {
+	previous := []sample{{DeploymentID: "deployment-a", ContainerName: "api", State: "running", SampledAt: 1}}
+	c := &collector{docker: &fakeDockerAPI{listErr: errors.New("docker unreachable")}, latest: previous, lastPersist: time.Now()}
+	c.collect(context.Background(), false)
+	if len(c.latest) != 1 || c.latest[0].DeploymentID != "deployment-a" {
+		t.Fatalf("latest wiped after collection error: %+v", c.latest)
+	}
+}
+
+func TestCollectorOverwritesLatestOnSuccess(t *testing.T) {
+	c := &collector{docker: &fakeDockerAPI{}, latest: []sample{{DeploymentID: "stale"}}, lastPersist: time.Now()}
+	c.collect(context.Background(), false)
+	if len(c.latest) != 0 {
+		t.Fatalf("empty successful read kept old samples: %+v", c.latest)
 	}
 }
 

@@ -18,6 +18,18 @@ import (
 
 const alertEvaluationInterval = time.Minute
 
+// staleSampleAfter is how old an agent sample may be before it stops counting
+// as evidence. The agent publishes every 15s, so two minutes tolerates several
+// missed cycles while still catching a wedged collector.
+const staleSampleAfter = 2 * time.Minute
+
+func sampledFresh(sampledAtMillis int64) bool {
+	if sampledAtMillis <= 0 {
+		return false
+	}
+	return time.Since(time.UnixMilli(sampledAtMillis)) <= staleSampleAfter
+}
+
 func StartAlertEvaluator(ctx context.Context) {
 	tracker := alerts.NewTracker()
 	ticker := time.NewTicker(alertEvaluationInterval)
@@ -119,27 +131,42 @@ func monitoringTarget(server db.ServerWithKey) monitoring.Target {
 func observeServer(ctx context.Context, serverID string) (alerts.Observation, error) {
 	server, err := db.GetServerWithKey(ctx, serverID)
 	if err != nil {
-		return alerts.Observation{TargetID: serverID, TargetName: serverID, Reachable: false}, err
+		return alerts.Observation{TargetID: serverID, TargetName: serverID}, err
 	}
-	observation := alerts.Observation{TargetID: server.ID, TargetName: server.Name, Reachable: true, ObservedAt: time.Now().UTC()}
+	observation := alerts.Observation{TargetID: server.ID, TargetName: server.Name, ObservedAt: time.Now().UTC()}
 	if server.Monitoring.Enabled {
 		latest, err := monitoring.GetServerLatest(ctx, monitoringTarget(server), server.ReaderToken)
 		if err != nil {
+			// The agent is the only reporter on the host; failing to reach it is
+			// positive evidence the server is unreachable.
+			observation.ReachabilityKnown = true
 			observation.Reachable = false
-		} else {
+			return observation, nil
+		}
+		observation.ReachabilityKnown = true
+		observation.Reachable = true
+		if sampledFresh(latest.SampledAt) {
+			observation.MetricsKnown = true
 			observation.DiskUsedPercent = latest.DiskUsedPercent
 		}
 		return observation, nil
 	}
 	client, err := ssh.NewClient(ssh.ServerConfig{Host: server.Host, Port: int(server.Port), User: server.SSHUser, PrivateKey: server.PrivateKey})
 	if err != nil {
+		observation.ReachabilityKnown = true
 		observation.Reachable = false
 		return observation, nil
 	}
 	defer client.Close()
+	// SSH answered, so the host is reachable either way. A missing docker is a
+	// provisioning problem, not a disk or reachability signal.
 	if err := client.DetectDocker(); err != nil {
-		observation.Reachable = false
+		observation.ReachabilityKnown = true
+		observation.Reachable = true
+		return observation, nil
 	}
+	observation.ReachabilityKnown = true
+	observation.Reachable = true
 	return observation, nil
 }
 
@@ -148,7 +175,7 @@ func observeService(ctx context.Context, serviceID string) (alerts.Observation, 
 	if err != nil {
 		return alerts.Observation{}, err
 	}
-	observation := alerts.Observation{TargetID: service.ID, TargetName: service.Name, Reachable: true, ObservedAt: time.Now().UTC()}
+	observation := alerts.Observation{TargetID: service.ID, TargetName: service.Name, ObservedAt: time.Now().UTC()}
 	inProgress, err := db.ServiceHasInProgressDeployment(ctx, service.ID)
 	if err != nil {
 		return observation, err
@@ -159,13 +186,15 @@ func observeService(ctx context.Context, serviceID string) (alerts.Observation, 
 		observation.Suppressed = true
 		return observation, nil
 	}
+	// Nothing has ever run here, and no active deployment means nothing is
+	// running: both are verified "not running", not a missing sample.
 	if !service.HasDeployed {
-		return observation, nil
+		return verifiedStopped(observation), nil
 	}
 	deployment, config, err := db.GetActiveDeploymentConfig(ctx, service.ID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return observation, nil
+			return verifiedStopped(observation), nil
 		}
 		return observation, err
 	}
@@ -177,62 +206,91 @@ func observeService(ctx context.Context, serviceID string) (alerts.Observation, 
 	if server.Monitoring.Enabled {
 		latest, err := monitoring.GetLatestAll(ctx, monitoringTarget(server), server.ReaderToken)
 		if err != nil {
+			observation.ReachabilityKnown = true
 			observation.Reachable = false
 			return observation, nil
 		}
+		observation.ReachabilityKnown = true
+		observation.Reachable = true
 		for _, point := range latest.Points {
 			if point.DeploymentID != deployment.ID {
 				continue
 			}
+			if !sampledFresh(point.SampledAt) {
+				// Stale sample: the collector is stuck, not the service.
+				return observation, nil
+			}
+			observation.ServiceStateKnown = true
 			observation.ServiceRunning = point.State == "running"
+			observation.MetricsKnown = true
 			observation.CPUPercent = point.CPUPercent
 			if point.MemoryLimitBytes > 0 {
 				observation.MemoryPercent = float64(point.MemoryUsedBytes) * 100 / float64(point.MemoryLimitBytes)
 			}
 			return observation, nil
 		}
+		// No sample for this deployment yet: unknown, never "stopped".
 		return observation, nil
 	}
 	client, err := ssh.NewClient(ssh.ServerConfig{Host: server.Host, Port: int(server.Port), User: server.SSHUser, PrivateKey: server.PrivateKey})
 	if err != nil {
+		observation.ReachabilityKnown = true
 		observation.Reachable = false
 		return observation, nil
 	}
 	defer client.Close()
 	if err := client.DetectDocker(); err != nil {
-		observation.Reachable = false
+		observation.ReachabilityKnown = true
+		observation.Reachable = true
 		return observation, nil
 	}
+	observation.ReachabilityKnown = true
+	observation.Reachable = true
 	status, err := client.Run(ctx, client.DockerBin()+" inspect --format '{{.State.Status}}' "+ssh.ShellQuote(containerName)+" 2>/dev/null || true")
 	if err != nil {
+		// Could not read the container state at all.
 		return observation, nil
 	}
+	observation.ServiceStateKnown = true
 	observation.ServiceRunning = strings.TrimSpace(status) == "running"
 	if !observation.ServiceRunning {
 		return observation, nil
 	}
 	stats, err := client.Run(ctx, client.DockerBin()+" stats --no-stream --format '{{.CPUPerc}}|{{.MemUsage}}' "+ssh.ShellQuote(containerName))
-	if err == nil {
-		parseServiceStats(&observation, stats)
+	if err != nil {
+		// State is known, usage is not.
+		return observation, nil
+	}
+	if parseServiceStats(&observation, stats) {
+		observation.MetricsKnown = true
 	}
 	return observation, nil
 }
 
-func parseServiceStats(observation *alerts.Observation, value string) {
+func verifiedStopped(observation alerts.Observation) alerts.Observation {
+	observation.ReachabilityKnown = true
+	observation.Reachable = true
+	observation.ServiceStateKnown = true
+	observation.ServiceRunning = false
+	return observation
+}
+
+func parseServiceStats(observation *alerts.Observation, value string) bool {
 	parts := strings.SplitN(strings.TrimSpace(value), "|", 2)
 	if len(parts) != 2 {
-		return
+		return false
 	}
 	observation.CPUPercent, _ = strconv.ParseFloat(strings.TrimSuffix(strings.TrimSpace(parts[0]), "%"), 64)
 	memory := strings.Split(parts[1], " /")
 	if len(memory) != 2 {
-		return
+		return false
 	}
 	used, usedOK := parseMetricBytes(strings.TrimSpace(memory[0]))
 	limit, limitOK := parseMetricBytes(strings.TrimSpace(memory[1]))
 	if usedOK && limitOK && limit > 0 {
 		observation.MemoryPercent = float64(used) * 100 / float64(limit)
 	}
+	return true
 }
 
 func parseMetricBytes(value string) (int64, bool) {
