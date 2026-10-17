@@ -618,6 +618,80 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /api/projects/from-source:
+    post:
+      operationId: createProjectFromSource
+      summary: Atomically create a project and GitHub source service with durable retries
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectFromSourceRequest"
+      responses:
+        "201":
+          description: Created or replayed creation-time response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateProjectFromImageResponse"
+        "400":
+          description: Invalid request or unconfirmed branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Idempotency key reused with a different request or container name in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: Request body too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Repository analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Source-analysis rate or concurrency limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: GitHub unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /api/projects/{id}:
     get:
       operationId: getProject
@@ -1957,6 +2031,9 @@ components:
         branch:
           type: string
           default: main
+        branch_confirmed:
+          type: boolean
+          description: Required true with an explicit branch for tree/blob URLs.
 
     AnalyzeSourceResponse:
       type: object
@@ -2277,6 +2354,37 @@ components:
         service:
           $ref: "#/components/schemas/ServiceResponse"
 
+    CreateProjectFromSourceRequest:
+      type: object
+      required:
+        - idempotency_key
+        - server_id
+        - repo_url
+        - name
+        - container_name
+        - container_port
+      properties:
+        idempotency_key:
+          type: string
+          description: Client-generated UUID retained for retries.
+        server_id:
+          type: string
+        repo_url:
+          type: string
+        branch:
+          type: string
+          default: main
+        branch_confirmed:
+          type: boolean
+        name:
+          type: string
+        container_name:
+          type: string
+        container_port:
+          type: integer
+        host_port:
+          type: integer
+
     EnvironmentResponse:
       type: object
       required:
@@ -2382,6 +2490,8 @@ components:
         branch:
           type: string
           default: main
+        branch_confirmed:
+          type: boolean
 
     UpdateServiceRequest:
       type: object

@@ -47,14 +47,10 @@ func (s *Server) CreateServiceFromSource(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	repo, err := source.ParseRepoURL(req.RepoUrl)
+	repo, err := source.ParseRepoURLWithBranch(req.RepoUrl, req.Branch, req.BranchConfirmed != nil && *req.BranchConfirmed)
 	if err != nil {
-		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "repo_url must be a public github.com repository"})
+		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "invalid repository URL or unconfirmed branch; select and confirm a matching branch for tree/blob URLs"})
 		return
-	}
-	repo.Branch = "main"
-	if req.Branch != nil && strings.TrimSpace(*req.Branch) != "" {
-		repo.Branch = strings.TrimSpace(*req.Branch)
 	}
 
 	server, err := db.GetServerByID(r.Context(), req.ServerId)

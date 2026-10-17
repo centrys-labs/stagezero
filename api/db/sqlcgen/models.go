@@ -126,6 +126,13 @@ type Session struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 }
 
+type SourceProjectRequest struct {
+	WorkspaceID    string      `json:"workspace_id"`
+	IdempotencyKey pgtype.UUID `json:"idempotency_key"`
+	Fingerprint    string      `json:"fingerprint"`
+	ResponseJson   string      `json:"response_json"`
+}
+
 type SshKey struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`

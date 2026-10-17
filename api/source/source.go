@@ -261,6 +261,50 @@ func ParseRepoURL(raw string) (Repo, error) {
 	return Repo{Owner: parts[0], Name: name}, nil
 }
 
+// ParseRepoURLWithBranch requires an explicit confirmation for ambiguous GitHub
+// tree/blob URLs. A slash may belong to the branch or to a path in the repo.
+func ParseRepoURLWithBranch(raw string, branch *string, confirmed bool) (Repo, error) {
+	repo, err := ParseRepoURL(raw)
+	if err != nil {
+		return Repo{}, err
+	}
+	text := strings.TrimSpace(raw)
+	if !strings.Contains(text, "://") {
+		if strings.HasPrefix(strings.ToLower(text), "github.com/") {
+			text = "https://" + text
+		} else {
+			text = "https://github.com/" + text
+		}
+	}
+	u, err := url.Parse(text)
+	if err != nil {
+		return Repo{}, ErrInvalidRepoURL
+	}
+	parts := strings.Split(strings.Trim(u.EscapedPath(), "/"), "/")
+	if len(parts) > 2 {
+		if len(parts) < 4 || (parts[2] != "tree" && parts[2] != "blob") || parts[3] == "" {
+			return Repo{}, ErrInvalidRepoURL
+		}
+		if branch == nil || strings.TrimSpace(*branch) == "" || !confirmed {
+			return Repo{}, ErrInvalidBranch
+		}
+		ref := strings.Join(parts[3:], "/")
+		candidate := strings.TrimSpace(*branch)
+		if ref != candidate && !strings.HasPrefix(ref, candidate+"/") {
+			return Repo{}, ErrInvalidBranch
+		}
+	}
+	if branch != nil && strings.TrimSpace(*branch) != "" {
+		repo.Branch = strings.TrimSpace(*branch)
+	} else {
+		repo.Branch = "main"
+	}
+	if _, err := repo.branch(); err != nil {
+		return Repo{}, err
+	}
+	return repo, nil
+}
+
 func (r Repo) cloneURL() string {
 	return "https://github.com/" + r.Owner + "/" + r.Name + ".git"
 }

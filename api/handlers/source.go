@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/centrys-labs/stagezero/auth"
@@ -30,19 +29,11 @@ func (s *Server) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
 		respond.JSON(w, http.StatusUnauthorized, gen.ErrorResponse{Error: "authentication required"})
 		return
 	}
-	limits := s.SourceLimits
-	if limits.RequestBytes == 0 {
-		limits = source.DefaultAnalysisLimits()
-	}
-	s.sourceGateOnce.Do(func() { s.sourceGate = source.NewAnalysisGate(limits) })
-	release, allowed := s.sourceGate.Enter(sc.UserID)
-	if !allowed {
-		respond.JSON(w, http.StatusTooManyRequests, gen.ErrorResponse{Error: "source analysis rate or concurrency limit reached; retry later"})
+	ctx, release, limits, ok := s.enterSourceAnalysis(w, r, sc.UserID)
+	if !ok {
 		return
 	}
 	defer release()
-	ctx, cancel := context.WithTimeout(r.Context(), limits.Timeout)
-	defer cancel()
 	r = r.WithContext(ctx)
 	// Request context cancellation does not interrupt a client that stalls in
 	// the middle of sending JSON; bound socket reads too.
@@ -80,17 +71,14 @@ func (s *Server) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repo, err := source.ParseRepoURL(req.RepoUrl)
+	repo, err := source.ParseRepoURLWithBranch(req.RepoUrl, req.Branch, req.BranchConfirmed != nil && *req.BranchConfirmed)
 	if err != nil {
-		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "repo_url must be a public github.com repository"})
-		return
-	}
-	repo.Branch = "main"
-	if req.Branch != nil {
-		repo.Branch = strings.TrimSpace(*req.Branch)
-		if repo.Branch == "" {
-			repo.Branch = "main"
+		if errors.Is(err, source.ErrInvalidRepoURL) {
+			respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "repo_url must be a public github.com repository"})
+		} else {
+			respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "select and confirm a matching branch for tree/blob URLs"})
 		}
+		return
 	}
 
 	analysis, err := s.analyzeSource(ctx, repo)
@@ -114,6 +102,21 @@ func (s *Server) AnalyzeSource(w http.ResponseWriter, r *http.Request) {
 		resp.StartCommand = &startCommand
 	}
 	respond.JSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) enterSourceAnalysis(w http.ResponseWriter, r *http.Request, userID string) (context.Context, func(), source.AnalysisLimits, bool) {
+	limits := s.SourceLimits
+	if limits.RequestBytes == 0 {
+		limits = source.DefaultAnalysisLimits()
+	}
+	s.sourceGateOnce.Do(func() { s.sourceGate = source.NewAnalysisGate(limits) })
+	release, allowed := s.sourceGate.Enter(userID)
+	if !allowed {
+		respond.JSON(w, http.StatusTooManyRequests, gen.ErrorResponse{Error: "source analysis rate or concurrency limit reached; retry later"})
+		return nil, nil, limits, false
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), limits.Timeout)
+	return ctx, func() { cancel(); release() }, limits, true
 }
 
 func (s *Server) analyzeSource(ctx context.Context, repo source.Repo) (source.Analysis, error) {
