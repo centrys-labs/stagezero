@@ -102,6 +102,27 @@ func ListDeploymentsByService(ctx context.Context, serviceID string, limit int32
 	return deps, nil
 }
 
+func ListDeploymentsByServiceInWindow(ctx context.Context, serviceID string, from, to time.Time) ([]Deployment, error) {
+	if from.After(to) {
+		return nil, fmt.Errorf("metrics history start must not follow end")
+	}
+	rows, err := Queries.ListDeploymentsByServiceInWindow(ctx, sqlcgen.ListDeploymentsByServiceInWindowParams{
+		ServiceID: serviceID, WindowStart: from, WindowEnd: to,
+	})
+	if err != nil {
+		return nil, err
+	}
+	deployments := make([]Deployment, len(rows))
+	for i, row := range rows {
+		deployment := newDeployment(row.ID, row.Status, row.WorkspaceID, row.ServiceID, row.CreatedAt)
+		deployment.StartedAt = row.StartedAt
+		completedAt := row.CompletedAt
+		deployment.CompletedAt = &completedAt
+		deployments[i] = deployment
+	}
+	return deployments, nil
+}
+
 func ListInProgressDeploymentIDs(ctx context.Context) ([]string, error) {
 	return Queries.ListInProgressDeploymentIDs(ctx)
 }

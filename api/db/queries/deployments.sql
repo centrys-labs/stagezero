@@ -96,6 +96,30 @@ WHERE id IN (SELECT id FROM marked ORDER BY created_at DESC LIMIT $2)
    OR is_draining
 ORDER BY created_at DESC;
 
+-- name: ListDeploymentsByServiceInWindow :many
+-- Include attempts created inside the window as markers, and earlier successful
+-- deployments that could have samples inside it. Failed attempts do not replace
+-- the last successful container.
+WITH service_deployments AS (
+    SELECT d.id, d.status, d.workspace_id, d.service_id, d.created_at,
+           COALESCE((SELECT MIN(l.created_at) FROM deployment_logs l WHERE l.deployment_id = d.id), d.created_at) AS started_at,
+           COALESCE((SELECT MAX(l.created_at)::timestamptz FROM deployment_logs l WHERE l.deployment_id = d.id), d.created_at) AS completed_at
+    FROM deployments d
+    WHERE d.service_id = $1
+), successful AS (
+    SELECT id, started_at,
+           LEAD(started_at) OVER (ORDER BY created_at ASC, id ASC) AS superseded_at
+    FROM service_deployments
+    WHERE status = 'success'
+)
+SELECT d.id, d.status::text AS status, d.workspace_id, d.service_id, d.created_at, d.started_at, d.completed_at
+FROM service_deployments d
+LEFT JOIN successful s ON s.id = d.id
+WHERE d.created_at BETWEEN @window_start::timestamptz AND @window_end::timestamptz
+   OR (s.id IS NOT NULL AND s.started_at <= @window_end::timestamptz
+       AND (s.superseded_at IS NULL OR s.superseded_at >= @window_start::timestamptz))
+ORDER BY d.created_at ASC, d.id ASC;
+
 -- name: ListInProgressDeploymentIDs :many
 SELECT id
 FROM deployments
