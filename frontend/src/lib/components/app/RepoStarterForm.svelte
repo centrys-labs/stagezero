@@ -25,12 +25,14 @@
 		error?: string;
 		onBack: () => void;
 		onChangeRepository: () => void;
-		onAnalyze: (repoUrl: string, branch: string) => void;
+		onAnalyze: (repoUrl: string, branch: string, branchConfirmed: boolean) => void;
 		onCreate: (values: {
+			repoUrl: string;
 			name: string;
 			containerName: string;
 			containerPort: number;
 			branch: string;
+			branchConfirmed: boolean;
 		}) => void;
 	};
 
@@ -55,9 +57,13 @@
 	let containerNameTouched = $state(false);
 	let localError = $state('');
 	let repoInput = $state<HTMLInputElement | null>(null);
+	let branchConfirmed = $state(false);
+	let refPath = $derived(repoUrl.trim().match(/(?:^|\/)(?:tree|blob)\/(.+?)(?:[?#]|$)/)?.[1] ?? '');
 
 	let step = $derived(analysis ? 'confirm' : 'repo');
-	let repoReady = $derived(repoUrl.trim() !== '' && branch.trim() !== '');
+	let repoReady = $derived(
+		repoUrl.trim() !== '' && branch.trim() !== '' && (!refPath || branchConfirmed)
+	);
 	let formReady = $derived(
 		name.trim() !== '' && containerName.trim() !== '' && Number.isFinite(containerPort)
 	);
@@ -76,8 +82,14 @@
 		if (name === '') name = analysis.suggested_name;
 		if (!containerNameTouched) containerName = safeContainerName(name);
 		if (!containerPortTouched) containerPort = analysis.suggested_port;
-		if (branch === 'main' && analysis.branch) branch = analysis.branch;
+		if (!refPath && branch === 'main' && analysis.branch) branch = analysis.branch;
 	});
+
+	function changedRepository() {
+		branchConfirmed = false;
+		const suffix = repoUrl.trim().match(/(?:^|\/)(?:tree|blob)\/(.+?)(?:[?#]|$)/)?.[1];
+		if (suffix) branch = suffix;
+	}
 
 	function submitAnalysis(event: SubmitEvent) {
 		event.preventDefault();
@@ -90,7 +102,11 @@
 			localError = 'Branch is required';
 			return;
 		}
-		onAnalyze(repoUrl.trim(), branch.trim());
+		if (refPath && !branchConfirmed) {
+			localError = 'Confirm the branch from the GitHub URL before analyzing';
+			return;
+		}
+		onAnalyze(repoUrl.trim(), branch.trim(), branchConfirmed);
 	}
 
 	function submitCreate(event: SubmitEvent) {
@@ -105,11 +121,17 @@
 			localError = 'Port must be between 1 and 65535';
 			return;
 		}
+		if (refPath && !branchConfirmed) {
+			localError = 'Confirm the branch from the GitHub URL before creating';
+			return;
+		}
 		onCreate({
+			repoUrl: repoUrl.trim(),
 			name: name.trim(),
 			containerName: containerName.trim(),
 			containerPort,
-			branch: branch.trim()
+			branch: branch.trim(),
+			branchConfirmed
 		});
 	}
 
@@ -151,6 +173,7 @@
 				<Input
 					bind:value={repoUrl}
 					bind:ref={repoInput}
+					oninput={changedRepository}
 					placeholder="github.com/owner/repository"
 					autocomplete="url"
 					autocapitalize="off"
@@ -160,8 +183,23 @@
 			</label>
 			<label class="flex flex-col gap-1.5 text-xs text-muted-foreground">
 				<span>Branch</span>
-				<Input bind:value={branch} placeholder="main" autocomplete="off" required />
+				<Input
+					bind:value={branch}
+					oninput={() => (branchConfirmed = false)}
+					placeholder="main"
+					autocomplete="off"
+					required
+				/>
 			</label>
+			{#if refPath}
+				<label class="flex items-start gap-2 text-xs text-foreground">
+					<input type="checkbox" bind:checked={branchConfirmed} class="mt-0.5" />
+					<span
+						>Confirm this branch from the GitHub URL. If it contains a folder path, edit the branch
+						above to match the actual branch name.</span
+					>
+				</label>
+			{/if}
 
 			{#if localError || error}
 				<Alert tone="danger">{localError || error}</Alert>
@@ -261,10 +299,10 @@
 							required
 						/>
 					</label>
-					<label class="flex flex-col gap-1.5 text-xs text-muted-foreground">
+					<div class="flex flex-col gap-1.5 text-xs text-muted-foreground">
 						<span>Branch</span>
-						<Input bind:value={branch} required />
-					</label>
+						<span class="py-2 font-mono text-xs text-foreground">{branch}</span>
+					</div>
 				</div>
 			</div>
 
@@ -280,7 +318,12 @@
 
 			<div class="flex items-center justify-between gap-3 pt-1">
 				<Button type="button" variant="ghost" size="sm" onclick={goBack}>Change repository</Button>
-				<Button type="submit" size="sm" loading={submitting} disabled={!formReady || submitting}>
+				<Button
+					type="submit"
+					size="sm"
+					loading={submitting}
+					disabled={!formReady || submitting || (!!refPath && !branchConfirmed)}
+				>
 					{submitting ? 'Creating…' : 'Create service'}
 				</Button>
 			</div>
