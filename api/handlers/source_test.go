@@ -53,6 +53,47 @@ func TestAnalyzeSourceReturnsServerSideFacts(t *testing.T) {
 	}
 }
 
+func TestAnalyzeSourceRequiresConfirmedRefFromOriginalURL(t *testing.T) {
+	var calls int
+	server := &handlers.Server{SourceAnalyzer: fakeSourceAnalyzer{analyze: func(_ context.Context, repo source.Repo) (source.Analysis, error) {
+		calls++
+		if repo.Branch != "Feature/X" {
+			t.Fatalf("branch = %q", repo.Branch)
+		}
+		return source.Analysis{Repo: repo, SHA: strings.Repeat("a", 40), Info: source.Info{Provider: "go"}}, nil
+	}}}
+	for _, body := range []string{
+		`{"repo_url":"https://github.com/owner/demo/tree/main","branch":"main"}`,
+		`{"repo_url":"https://github.com/owner/demo/tree/Feature/X/src","branch":"main","branch_confirmed":true}`,
+		`{"repo_url":"https://github.com/owner/demo/blob/Feature/X/README.md","branch":"Feature/X","branch_confirmed":false}`,
+	} {
+		rec := httptest.NewRecorder()
+		server.AnalyzeSource(rec, authenticatedSourceRequest(body))
+		if rec.Code != http.StatusBadRequest || calls != 0 {
+			t.Fatalf("unconfirmed branch: status=%d calls=%d body=%s", rec.Code, calls, rec.Body.String())
+		}
+	}
+	rec := httptest.NewRecorder()
+	server.AnalyzeSource(rec, authenticatedSourceRequest(`{"repo_url":"https://github.com/owner/demo/tree/Feature/X/src","branch":"Feature/X","branch_confirmed":true}`))
+	if rec.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("confirmed branch: status=%d calls=%d body=%s", rec.Code, calls, rec.Body.String())
+	}
+}
+
+func TestCreateServiceFromSourceRejectsUnconfirmedRefBeforeDatabase(t *testing.T) {
+	server := &handlers.Server{SourceAnalyzer: fakeSourceAnalyzer{analyze: func(context.Context, source.Repo) (source.Analysis, error) {
+		t.Fatal("unconfirmed URL reached analyzer")
+		return source.Analysis{}, nil
+	}}}
+	req := httptest.NewRequest(http.MethodPost, "/api/services/from-source", strings.NewReader(`{"name":"demo","container_name":"demo","container_port":3000,"repo_url":"https://github.com/owner/demo/tree/main","branch":"main"}`))
+	req = req.WithContext(auth.WithSessionContext(req.Context(), auth.SessionContext{UserID: "source-test-user", WorkspaceRole: "owner"}))
+	rec := httptest.NewRecorder()
+	server.CreateServiceFromSource(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAnalyzeSourceRouteRequiresSession(t *testing.T) {
 	server := &handlers.Server{SourceAnalyzer: fakeSourceAnalyzer{analyze: func(_ context.Context, repo source.Repo) (source.Analysis, error) {
 		return source.Analysis{Repo: repo, SHA: strings.Repeat("b", 40), Info: source.Info{Provider: "go"}}, nil

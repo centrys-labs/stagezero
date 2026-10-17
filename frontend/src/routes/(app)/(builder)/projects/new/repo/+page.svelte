@@ -4,6 +4,7 @@
 	import { api } from '$lib/api/client';
 	import type { components } from '$lib/api/v1';
 	import type { PageData } from './$types';
+	import { onMount } from 'svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import EmptyState from '$lib/components/ui/EmptyState.svelte';
 	import RepoStarterForm from '$lib/components/app/RepoStarterForm.svelte';
@@ -13,6 +14,7 @@
 
 	type ServerResponse = components['schemas']['ServerResponse'];
 	type AnalysisResponse = components['schemas']['AnalyzeSourceResponse'];
+	type ImportRequest = components['schemas']['CreateProjectFromSourceRequest'];
 
 	let { data }: { data: PageData } = $props();
 	let canEdit = $derived(data.workspace?.role === 'owner' || data.workspace?.role === 'developer');
@@ -24,6 +26,18 @@
 	let submitting = $state(false);
 	let error = $state('');
 	let retrying = $state(false);
+	let pending = $state<ImportRequest | null>(null);
+	let completedProjectId = $state('');
+	let pendingKey = $derived(`stagezero:source-import:${data.workspace?.id}:${serverId}`);
+
+	onMount(() => {
+		try {
+			const saved = sessionStorage.getItem(pendingKey);
+			if (saved) pending = JSON.parse(saved) as ImportRequest;
+		} catch {
+			// Browser storage can be unavailable; the server idempotency contract still works.
+		}
+	});
 
 	async function retryLoadServers() {
 		retrying = true;
@@ -44,12 +58,12 @@
 		error = '';
 	}
 
-	async function analyze(repoUrl: string, branch: string) {
+	async function analyze(repoUrl: string, branch: string, branchConfirmed: boolean) {
 		analyzing = true;
 		error = '';
 		try {
 			const { data: result, error: err } = await api.POST('/api/source/analyze', {
-				body: { repo_url: repoUrl, branch }
+				body: { repo_url: repoUrl, branch, branch_confirmed: branchConfirmed }
 			});
 			if (err || !result) {
 				error = (err as { error?: string } | undefined)?.error ?? 'Could not analyze repository';
@@ -64,63 +78,84 @@
 	}
 
 	async function create(values: {
+		repoUrl: string;
 		name: string;
 		containerName: string;
 		containerPort: number;
 		branch: string;
+		branchConfirmed: boolean;
 	}) {
 		if (submitting || !server || !analysis) return;
+		const body: ImportRequest = {
+			idempotency_key: crypto.randomUUID(),
+			name: values.name,
+			container_name: values.containerName,
+			container_port: values.containerPort,
+			server_id: server.id,
+			repo_url: values.repoUrl,
+			branch: values.branch,
+			branch_confirmed: values.branchConfirmed
+		};
+		if (pending) {
+			if (
+				JSON.stringify({ ...pending, idempotency_key: '' }) !==
+				JSON.stringify({ ...body, idempotency_key: '' })
+			) {
+				error =
+					'Retry the pending import first, or choose Start another import to change the details.';
+				return;
+			}
+			body.idempotency_key = pending.idempotency_key;
+		}
+		await submitImport(body);
+	}
+
+	async function submitImport(body: ImportRequest) {
+		if (submitting) return;
 		submitting = true;
 		error = '';
+		pending = body;
 		try {
-			const projectResult = await api.POST('/api/projects', { body: {} });
-			if (projectResult.error || !projectResult.data) {
+			sessionStorage.setItem(pendingKey, JSON.stringify(body));
+		} catch {
+			// A retry in this page still uses the same key even without storage.
+		}
+		try {
+			const result = await api.POST('/api/projects/from-source', { body });
+			if (result.error || !result.data) {
+				const reason = (result.error as { error?: string } | undefined)?.error;
 				error =
-					(projectResult.error as { error?: string } | undefined)?.error ??
-					'Could not create project';
+					reason ??
+					(result.response.status === 409
+						? 'This key belongs to a different import, or the container name is in use. Check the details before starting another import.'
+						: result.response.status === 429
+							? 'Too many analyses are running. Retry this request in a minute.'
+							: result.response.status === 422
+								? 'Repository analysis failed. Check the branch and project files, then retry.'
+								: 'Could not complete the import. Retry this request to check its result.');
 				return;
 			}
-			const project = projectResult.data;
-			const environmentsResult = await api.GET('/api/projects/{id}/environments', {
-				params: { path: { id: project.id } }
-			});
-			const environment =
-				environmentsResult.data?.find((item) => item.name === 'production') ??
-				environmentsResult.data?.[0];
-			if (environmentsResult.error || !environment) {
-				error = 'Could not prepare the project environment';
-				return;
-			}
-			const serviceResult = await api.POST('/api/services/from-source', {
-				body: {
-					name: values.name,
-					container_name: values.containerName,
-					container_port: values.containerPort,
-					server_id: server.id,
-					environment_id: environment.id,
-					repo_url: `https://github.com/${analysis.owner}/${analysis.name}`,
-					branch: values.branch
-				}
-			});
-			if (serviceResult.error || !serviceResult.data) {
-				error =
-					(serviceResult.error as { error?: string } | undefined)?.error ??
-					'Could not create service';
-				if (serviceResult.response?.status === 422) analysis = null;
-				return;
+			completedProjectId = result.data.project.id;
+			pending = null;
+			try {
+				sessionStorage.removeItem(pendingKey);
+			} catch {
+				// Storage may be unavailable.
 			}
 			// eslint-disable-next-line svelte/no-navigation-without-resolve
-			await goto(`/projects/${project.id}`, {
+			await goto(`/projects/${completedProjectId}`, {
 				state: {
 					toastFlash: {
 						tone: 'success',
 						title: 'Service created successfully',
-						description: `Imported ${analysis.owner}/${analysis.name}.`
+						description: `Imported ${body.repo_url}.`
 					}
 				}
 			});
 		} catch {
-			error = 'Network error';
+			error = completedProjectId
+				? 'Project created. Use the project link below if navigation did not finish.'
+				: 'Connection lost. Retry with the same request to check the import result.';
 		} finally {
 			submitting = false;
 		}
@@ -209,6 +244,43 @@
 					</div>
 				{:else}
 					<div class="w-full max-w-120" data-no-pan>
+						{#if completedProjectId}
+							<p class="mb-3 text-sm">
+								<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+								<a href={`/projects/${completedProjectId}`} class="underline"
+									>Open created project</a
+								>
+							</p>
+						{/if}
+						{#if pending}
+							<div class="mb-3 rounded-lg border border-border bg-card p-4 text-sm text-foreground">
+								<p>
+									Retry this request to recover a completed project without creating another. If the
+									details need changing, start another import.
+								</p>
+								<div class="mt-3 flex flex-wrap gap-2">
+									<Button
+										type="button"
+										size="sm"
+										loading={submitting}
+										onclick={() => pending && submitImport(pending)}>Retry import</Button
+									>
+									<Button
+										type="button"
+										variant="secondary"
+										size="sm"
+										onclick={() => {
+											pending = null;
+											try {
+												sessionStorage.removeItem(pendingKey);
+											} catch {
+												// In-memory retry still works when storage is unavailable.
+											}
+										}}>Start another import</Button
+									>
+								</div>
+							</div>
+						{/if}
 						<RepoStarterForm
 							{analysis}
 							{submitting}

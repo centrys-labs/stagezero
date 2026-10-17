@@ -24,7 +24,11 @@ func RunMigrations(databaseURL string) error {
 		return fmt.Errorf("set dialect: %w", err)
 	}
 
-	if err := goose.Up(db, "migrations"); err != nil {
+	// Feature branches are numbered independently, so a database migrated from
+	// one branch can reach a version above migrations another branch adds later.
+	// AllowMissing applies those lower-versioned migrations instead of refusing
+	// to start; without it, a checkout from a different branch cannot upgrade.
+	if err := goose.Up(db, "migrations", goose.WithAllowMissing()); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 

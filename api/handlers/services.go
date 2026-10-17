@@ -300,6 +300,15 @@ func (s *Server) UpdateService(w http.ResponseWriter, r *http.Request, id string
 		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "image contains invalid characters"})
 		return
 	}
+	if _, err := db.GetServiceSource(r.Context(), id); err == nil {
+		if req.Image != existing.Image {
+			respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "source service image is derived from the deployed commit and cannot be edited"})
+			return
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to read service source"})
+		return
+	}
 
 	if req.ContainerName != existing.ContainerName {
 		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "container_name cannot be changed; delete and recreate the service instead"})

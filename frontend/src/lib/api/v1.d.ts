@@ -234,6 +234,23 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/projects/from-source': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Atomically create a project and GitHub source service with durable retries */
+		post: operations['createProjectFromSource'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/projects/{id}': {
 		parameters: {
 			query?: never;
@@ -589,6 +606,8 @@ export interface components {
 			repo_url: string;
 			/** @default main */
 			branch: string;
+			/** @description Required true with an explicit branch for tree/blob URLs. */
+			branch_confirmed?: boolean;
 		};
 		AnalyzeSourceResponse: {
 			owner: string;
@@ -717,6 +736,19 @@ export interface components {
 			environment: components['schemas']['EnvironmentResponse'];
 			service: components['schemas']['ServiceResponse'];
 		};
+		CreateProjectFromSourceRequest: {
+			/** @description Client-generated UUID retained for retries. */
+			idempotency_key: string;
+			server_id: string;
+			repo_url: string;
+			/** @default main */
+			branch: string;
+			branch_confirmed?: boolean;
+			name: string;
+			container_name: string;
+			container_port: number;
+			host_port?: number;
+		};
 		EnvironmentResponse: {
 			id: string;
 			name: string;
@@ -761,6 +793,7 @@ export interface components {
 			repo_url: string;
 			/** @default main */
 			branch: string;
+			branch_confirmed?: boolean;
 		};
 		UpdateServiceRequest: {
 			name: string;
@@ -1683,6 +1716,111 @@ export interface operations {
 			};
 			/** @description Internal server error */
 			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	createProjectFromSource: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['CreateProjectFromSourceRequest'];
+			};
+		};
+		responses: {
+			/** @description Created or replayed creation-time response */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['CreateProjectFromImageResponse'];
+				};
+			};
+			/** @description Invalid request or unconfirmed branch */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Authentication required */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Insufficient permissions */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Idempotency key reused with a different request or container name in use */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Request body too large */
+			413: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Repository analysis failed */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Source-analysis rate or concurrency limit reached */
+			429: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description GitHub unavailable */
+			502: {
 				headers: {
 					[name: string]: unknown;
 				};

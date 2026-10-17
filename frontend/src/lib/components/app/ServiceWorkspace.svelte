@@ -188,7 +188,13 @@
 		...(canEdit
 			? []
 			: [
-					{ label: 'Image', value: service.image, mono: true },
+					{
+						label: service.source ? 'Source' : 'Image',
+						value: service.source
+							? `${service.source.owner}/${service.source.repo} · ${service.source.branch}`
+							: service.image,
+						mono: true
+					},
 					{
 						label: 'Port',
 						value:
@@ -238,7 +244,7 @@
 			saveError = 'Name is required';
 			return;
 		}
-		if (!editImage.trim()) {
+		if (!service.source && !editImage.trim()) {
 			saveError = 'Image is required';
 			return;
 		}
@@ -249,7 +255,7 @@
 				params: { path: { id: svcId } },
 				body: {
 					name: editName.trim(),
-					image: editImage.trim(),
+					image: service.source ? service.image : editImage.trim(),
 					// Unchanged, but the API takes the whole resource.
 					container_name: service.container_name,
 					container_port: editContainerPort,
@@ -746,7 +752,9 @@
 								/>
 								<Docker class="h-7 w-7 flex-none" aria-hidden="true" />
 								<div class="min-w-0 flex-1">
-									<p class="truncate font-mono text-[15px] text-foreground">{service.image}</p>
+									<p class="truncate font-mono text-[15px] text-foreground">
+										{service.source ? 'Image built from the selected commit' : service.image}
+									</p>
 									<p class="mt-0.5 truncate text-[13px] text-muted-foreground">
 										{preview.age} <span class="px-1">·</span> via Docker
 										<span class="px-1">·</span><span class="font-mono"
@@ -828,7 +836,9 @@
 						/>
 						<Docker class="mt-px h-7 w-7 flex-none @2xl:mt-0" aria-hidden="true" />
 						<div class="min-w-0 flex-1">
-							<p class="truncate font-mono text-[15px] text-foreground">{service.image}</p>
+							<p class="truncate font-mono text-[15px] text-foreground">
+								{service.source ? 'Image built from the selected commit' : service.image}
+							</p>
 							<p class="mt-0.5 truncate text-[13px] text-muted-foreground">
 								{#if latestDeployment}
 									<!-- Relative first: "2 hours ago" is what you actually want to know
@@ -1224,9 +1234,16 @@
 						<Input type="text" bind:value={editName} size="sm" required />
 					</FormField>
 
-					<FormField label="Image">
-						<Input type="text" bind:value={editImage} size="sm" required class="font-mono" />
-					</FormField>
+					{#if service.source}
+						<p class="text-sm text-muted-foreground">
+							Image is derived from the repository commit at deployment. Source: {service.source
+								.owner}/{service.source.repo} · {service.source.branch}.
+						</p>
+					{:else}
+						<FormField label="Image">
+							<Input type="text" bind:value={editImage} size="sm" required class="font-mono" />
+						</FormField>
+					{/if}
 
 					<div class="flex flex-col gap-1.5">
 						<label class="flex items-center gap-2 text-[15px] text-foreground">

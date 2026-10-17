@@ -239,6 +239,9 @@ func (e GetServiceLogsParamsSince) Valid() bool {
 type AnalyzeSourceRequest struct {
 	Branch *string `json:"branch,omitempty"`
 
+	// BranchConfirmed Required true with an explicit branch for tree/blob URLs.
+	BranchConfirmed *bool `json:"branch_confirmed,omitempty"`
+
 	// RepoUrl Public GitHub repository URL.
 	RepoUrl string `json:"repo_url"`
 }
@@ -324,6 +327,21 @@ type CreateProjectFromImageResponse struct {
 	Service     ServiceResponse     `json:"service"`
 }
 
+// CreateProjectFromSourceRequest defines model for CreateProjectFromSourceRequest.
+type CreateProjectFromSourceRequest struct {
+	Branch          *string `json:"branch,omitempty"`
+	BranchConfirmed *bool   `json:"branch_confirmed,omitempty"`
+	ContainerName   string  `json:"container_name"`
+	ContainerPort   int     `json:"container_port"`
+	HostPort        *int    `json:"host_port,omitempty"`
+
+	// IdempotencyKey Client-generated UUID retained for retries.
+	IdempotencyKey string `json:"idempotency_key"`
+	Name           string `json:"name"`
+	RepoUrl        string `json:"repo_url"`
+	ServerId       string `json:"server_id"`
+}
+
 // CreateProjectRequest Request body for creating a project. When `name` is omitted, blank, or
 // whitespace-only, the backend generates a unique Railway-style
 // `adjective-noun` name scoped to the workspace.
@@ -348,8 +366,9 @@ type CreateServerRequest struct {
 
 // CreateServiceFromSourceRequest defines model for CreateServiceFromSourceRequest.
 type CreateServiceFromSourceRequest struct {
-	Branch        *string `json:"branch,omitempty"`
-	ContainerName string  `json:"container_name"`
+	Branch          *string `json:"branch,omitempty"`
+	BranchConfirmed *bool   `json:"branch_confirmed,omitempty"`
+	ContainerName   string  `json:"container_name"`
 
 	// ContainerPort Container port the built image listens on.
 	ContainerPort int    `json:"container_port"`
@@ -664,6 +683,9 @@ type CreateProjectJSONRequestBody = CreateProjectRequest
 // CreateProjectFromImageJSONRequestBody defines body for CreateProjectFromImage for application/json ContentType.
 type CreateProjectFromImageJSONRequestBody = CreateProjectFromImageRequest
 
+// CreateProjectFromSourceJSONRequestBody defines body for CreateProjectFromSource for application/json ContentType.
+type CreateProjectFromSourceJSONRequestBody = CreateProjectFromSourceRequest
+
 // UpdateProjectJSONRequestBody defines body for UpdateProject for application/json ContentType.
 type UpdateProjectJSONRequestBody = UpdateProjectRequest
 
@@ -735,6 +757,9 @@ type ServerInterface interface {
 	// Create a project, default environment, and Docker image service atomically
 	// (POST /api/projects/from-image)
 	CreateProjectFromImage(w http.ResponseWriter, r *http.Request)
+	// Atomically create a project and GitHub source service with durable retries
+	// (POST /api/projects/from-source)
+	CreateProjectFromSource(w http.ResponseWriter, r *http.Request)
 	// Delete a project
 	// (DELETE /api/projects/{id})
 	DeleteProject(w http.ResponseWriter, r *http.Request, id string)
@@ -1018,6 +1043,26 @@ func (siw *ServerInterfaceWrapper) CreateProjectFromImage(w http.ResponseWriter,
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreateProjectFromImage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateProjectFromSource operation middleware
+func (siw *ServerInterfaceWrapper) CreateProjectFromSource(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateProjectFromSource(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2187,6 +2232,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/projects", wrapper.ListProjects)
 	m.HandleFunc("POST "+options.BaseURL+"/api/projects", wrapper.CreateProject)
 	m.HandleFunc("POST "+options.BaseURL+"/api/projects/from-image", wrapper.CreateProjectFromImage)
+	m.HandleFunc("POST "+options.BaseURL+"/api/projects/from-source", wrapper.CreateProjectFromSource)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/projects/{id}", wrapper.DeleteProject)
 	m.HandleFunc("GET "+options.BaseURL+"/api/projects/{id}", wrapper.GetProject)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/projects/{id}", wrapper.UpdateProject)
