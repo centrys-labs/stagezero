@@ -13,7 +13,7 @@ Execution procedure only; no live-host steps have been run. Obtain separate auth
 
 ## Set up and record the successful path
 
-Run from a trusted operator shell after separate authorization. Replace values in the first block; keep the evidence directory private. `COOKIE_JAR` is a Netscape-format curl cookie jar obtained by logging into the **disposable** StageZero instance (not a literal Cookie header). `DATABASE_URL` points only to the disposable database. Run the migration command from `api/` in a checkout containing both branches' migrations (0026 source, 0027-0030 metrics, 0031 source idempotency). Do not run it against production.
+Run from a trusted operator shell **on the isolated API host**, in `api/` of a checkout containing both branches' migrations (0026 source, 0027-0030 metrics, 0031 source idempotency), after separate authorization. Replace values in the first block; keep the evidence directory private. `COOKIE_JAR` is a Netscape-format curl cookie jar obtained by logging into the **disposable** StageZero instance (not a literal Cookie header). `DATABASE_URL` points only to the disposable database; the example requires test-DB TLS. If using a loopback-only database without TLS instead, set `sslmode=disable` and confirm it is not reachable from other hosts. Do not run this against production.
 
 ```bash
 set -euo pipefail
