@@ -27,6 +27,11 @@ import (
 const proxyContainerName = "stagezero-proxy"
 const railpackVersion = "0.37.0"
 
+// The published Railpack frontend images carry the release prefix: the tag
+// ghcr.io/railwayapp/railpack-frontend:v0.37.0 exists and the unprefixed
+// name resolves to nothing, which fails the build.
+const railpackFrontendImage = "ghcr.io/railwayapp/railpack-frontend:v0.37.0"
+
 const (
 	imageDeploymentTimeout  = 10 * time.Minute
 	sourceDeploymentTimeout = 30 * time.Minute
@@ -413,7 +418,7 @@ func sourceBuildInvocation(docker, workdir, serviceID, image string, src *Source
 
 	args := []string{
 		dockerBin, "buildx", "build",
-		"--build-arg", ssh.ShellQuote("BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend:" + railpackVersion),
+		"--build-arg", ssh.ShellQuote("BUILDKIT_SYNTAX=" + railpackFrontendImage),
 		"-f", ssh.ShellQuote(workdir + "/railpack-plan.json"),
 		"--build-arg", ssh.ShellQuote("cache-key=" + serviceID),
 	}

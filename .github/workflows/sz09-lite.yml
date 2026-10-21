@@ -1,0 +1,127 @@
+name: SZ-09 Lite
+
+# Operator controlled smoke test of the combined candidate. It runs on a
+# GitHub-hosted Ubuntu runner: PostgreSQL 18 as a service container, the
+# combined API, and the pinned Railpack release. Nothing in this workflow
+# touches a self-hosted runner, a production host, or a production database.
+#
+# Trigger: the `sz09-lite` label is added to a pull request whose base is
+# integration/sz11b-candidate. Adding a label is an explicit operator action,
+# and the job refuses pull requests from forks, so no unrelated pull request,
+# push, or fork can start this workload.
+#
+# workflow_dispatch is listed for the day this file reaches the default
+# branch: a workflow can only be dispatched manually once it exists there, so
+# until then the label is the only way to start it.
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sz09-lite-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  sz09-lite:
+    name: SZ-09 Lite smoke
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.label.name == 'sz09-lite' &&
+       github.event.pull_request.base.ref == 'integration/sz11b-candidate' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: stagezero
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: stagezero_smoke
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stagezero -d stagezero_smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Disposable credentials for a local service container. They are not
+      # secrets and they never leave the runner.
+      STAGEZERO_TEST_DATABASE_URL: postgres://stagezero:${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/stagezero_smoke?sslmode=disable
+      SZ09_LITE: "1"
+      SZ09_FIXTURE_REPO: ${{ vars.SZ09_FIXTURE_REPO }}
+      SZ09_FIXTURE_BRANCH: ${{ vars.SZ09_FIXTURE_BRANCH }}
+      SZ09_FIXTURE_SHA: ${{ vars.SZ09_FIXTURE_SHA }}
+      SZ09_LITE_BUILD: ${{ vars.SZ09_LITE_BUILD }}
+      SZ09_DIAG_DIR: ${{ runner.temp }}/sz09-lite
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+
+      - name: Check runner capacity
+        run: |
+          set -euo pipefail
+          echo "cpus: $(nproc), memory: $(free -g | awk '/^Mem:/{print $2}') GB"
+          df -h /
+          free_g=$(df -Pk / | awk 'NR==2 {printf "%d", $4/1048576}')
+          if [ "$free_g" -lt 15 ]; then
+            echo "::error::${free_g} GB free on the runner filesystem, 15 GB required"
+            exit 1
+          fi
+          git --version
+          docker version --format '{{.Server.Version}}'
+
+      - name: Check the operator configuration
+        run: |
+          set -euo pipefail
+          if [ -z "${SZ09_FIXTURE_REPO:-}" ]; then
+            echo "::error::repository variable SZ09_FIXTURE_REPO is not set; it must name a small trusted public repository owned by the operator"
+            exit 1
+          fi
+          echo "fixture: ${SZ09_FIXTURE_REPO} branch: ${SZ09_FIXTURE_BRANCH:-main}"
+
+      - name: Install pinned Railpack
+        env:
+          RAILPACK_VERSION: "0.37.0"
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/railwayapp/railpack/releases/download/v${RAILPACK_VERSION}/railpack-v${RAILPACK_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xzf - -C /usr/local/bin railpack
+          railpack --version | grep -F "railpack version ${RAILPACK_VERSION}"
+
+      - name: Prepare a BuildKit builder
+        if: env.SZ09_LITE_BUILD == '1'
+        run: |
+          set -euo pipefail
+          docker buildx create --driver docker-container --use --name sz09-lite-builder --bootstrap
+
+      - name: Run the smoke test
+        working-directory: api
+        run: go test ./smoke -run TestSZ09Lite -v -count=1 -timeout 30m
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sz09-lite-diagnostics
+          path: ${{ runner.temp }}/sz09-lite
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Remove disposable build resources
+        if: always()
+        run: |
+          docker buildx rm sz09-lite-builder || true
+          docker image ls --format '{{.Repository}}:{{.Tag}}' | grep '^stagezero/sz09-lite:' | xargs -r docker rmi -f || true
