@@ -4,22 +4,30 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"io/fs"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*.sql migrations/manifest-0031.json
 var migrations embed.FS
 
 func RunMigrations(databaseURL string) error {
+	return runMigrations(databaseURL, migrations)
+}
+
+func runMigrations(databaseURL string, bundle fs.FS) error {
+	if err := checkMigrationBundle(bundle); err != nil {
+		return fmt.Errorf("migration bundle: %w", err)
+	}
 	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {
 		return fmt.Errorf("open db for migration: %w", err)
 	}
 	defer db.Close()
 
-	goose.SetBaseFS(migrations)
+	goose.SetBaseFS(bundle)
 	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("set dialect: %w", err)
 	}
@@ -30,6 +38,9 @@ func RunMigrations(databaseURL string) error {
 	// to start; without it, a checkout from a different branch cannot upgrade.
 	if err := goose.Up(db, "migrations", goose.WithAllowMissing()); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
+	}
+	if err := checkMigrationState(db); err != nil {
+		return fmt.Errorf("migration state: %w", err)
 	}
 
 	return nil
