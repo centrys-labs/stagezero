@@ -1,0 +1,126 @@
+[
+  {
+    "file": "0001_create_deployments.sql",
+    "sha256": "23b7ad706f2f0f5ae035b786544b79cbcd006c0f962b1c3776ddd52a9783df04"
+  },
+  {
+    "file": "0002_add_deployment_log_fields.sql",
+    "sha256": "a7a5656e9fab7e19ff52f3f42238f6f3eb9d708bdd3200d5f91788155c4f5e7b"
+  },
+  {
+    "file": "0003_create_auth_tables.sql",
+    "sha256": "c38e410cc1c97fd2cf5b545a8f28413355257b9cc8f08d86e4c8cce561f9b479"
+  },
+  {
+    "file": "0004_create_oauth_identities.sql",
+    "sha256": "69bc20e12e4b82b9d9cfb99e919d60138bf78e49cc0d526a224c6ce79cdbaa42"
+  },
+  {
+    "file": "0005_database_generated_ids.sql",
+    "sha256": "53c909c0d86ee3cb49cebf30154af25fc0348e0445642cd94c27eb40235c6e08"
+  },
+  {
+    "file": "0006_create_ssh_keys.sql",
+    "sha256": "0c8226c7072fb62f3bb3fd0d1bad41dee1499e720ec90b96939bd11e08924c77"
+  },
+  {
+    "file": "0007_drop_sessions_workspace_role.sql",
+    "sha256": "d38b81fa8370c79fe981f9f3f11cf9208dffe25e1077dc7242d97e6c6afb5fbd"
+  },
+  {
+    "file": "0008_create_servers.sql",
+    "sha256": "c74e80ae1acd4932abff369c9316ab894db12daec151684f9ed40ad5e237b22c"
+  },
+  {
+    "file": "0009_create_applications.sql",
+    "sha256": "35fc131d35018112b22a8255fa5e8582c82acc05d5896a4731379f5a91f7d053"
+  },
+  {
+    "file": "0010_create_application_envs.sql",
+    "sha256": "ee190c8ff271530a9981f2365e3e27dcbd51ebd276391dad81681dae59065271"
+  },
+  {
+    "file": "0011_unique_container_per_server.sql",
+    "sha256": "3ed2efe3c1489ee0399eb9fa3e59fea0c563fc143feafaffd32ae5501bc034b8"
+  },
+  {
+    "file": "0012_add_application_id_to_deployments.sql",
+    "sha256": "46d26b19941387a23321fb67eee2f9632e9f6dc89b6b8def0c7a0b090451c6ac"
+  },
+  {
+    "file": "0013_add_fqdn_and_proxy.sql",
+    "sha256": "611830d4fb91d228f85db523f408f4aadb3fa0e13d30c5b31234335274e03b0a"
+  },
+  {
+    "file": "0014_richer_proxy_status.sql",
+    "sha256": "09572459245efa62fcfd557bc763368f0b384fd1f929a5ee683d9ce0627acd07"
+  },
+  {
+    "file": "0015_not_null_deployment_logs_created_at.sql",
+    "sha256": "80cf82ffba18f2f5a817a14d10741c94fdd5d45267de4fc0bd8f891902ef4f4b"
+  },
+  {
+    "file": "0016_application_domains.sql",
+    "sha256": "287c6ba54ca92e70df1bb2e4da28061a14553df75f6f91be5aebe0a8f4d78b0b"
+  },
+  {
+    "file": "0017_add_deployment_log_phase.sql",
+    "sha256": "bbe9ab9ded3f3a9df1a8bc412d14c06a5f72c8d3c13c62ed249b4ec5483cac67"
+  },
+  {
+    "file": "0018_projects_environments_services.sql",
+    "sha256": "bf91230263f16fbe1a041041d6dc2cbf9e562e2d6e422ca3a372bf8574301b40"
+  },
+  {
+    "file": "0019_add_host_port_to_services.sql",
+    "sha256": "fbc6e47a7e3f004b95b866e400b1d7bcd43f92c293ac67b6735a8dab306d9729"
+  },
+  {
+    "file": "0020_backfill_host_port.sql",
+    "sha256": "d50a4840f070706e36a0a9430bb7697803a8e4dd20edadea783b6eb537c41e87"
+  },
+  {
+    "file": "0021_fix_host_port_backfill.sql",
+    "sha256": "e5c82bcc84bf8ef5b14d93e052fa92d5520b3675bd993c0aad049c2c97dde65b"
+  },
+  {
+    "file": "0022_rename_service_port_to_container_port.sql",
+    "sha256": "34ab5024af67e03285e34931fb503a00ba40f8706ab51341ff52809aaa98c0ee"
+  },
+  {
+    "file": "0023_deployment_configuration_snapshot.sql",
+    "sha256": "89bb45447bf26603ca8075681d0f19ba85c33ed6120410a0995a9131ee892887"
+  },
+  {
+    "file": "0024_one_in_progress_deployment_per_service.sql",
+    "sha256": "28491737d9433f73c907f96ff4f4efa34e5f173d8ea3ab8146cf0654427134ba"
+  },
+  {
+    "file": "0025_proxy_file_provider.sql",
+    "sha256": "a553a4aa41f4c44238c403d81358dd15b618f2ec468b95e5c1254530eab361b2"
+  },
+  {
+    "file": "0026_service_sources.sql",
+    "sha256": "83e44af31c31f6daeff7e12438768c54c84a3335a0b9b7ff7f4e7f230c47a109"
+  },
+  {
+    "file": "0027_server_monitoring.sql",
+    "sha256": "bde73f8589217930d27ae98e253e7116237b52441bdeaabfa328eb98c9291464"
+  },
+  {
+    "file": "0028_alerts.sql",
+    "sha256": "4b675583d0d8f90f34a49d38e21256ea7097177a70878e7985d21c47b0c60939"
+  },
+  {
+    "file": "0029_drop_monitoring_private_address.sql",
+    "sha256": "29d7b85db3edee5a6a3f1b135775d8102b2f97a619c790fd5300675a3eab6c51"
+  },
+  {
+    "file": "0030_monitoring_pending.sql",
+    "sha256": "3c74bb638f710afe63872d390edceb2c46cefead1aa43fd2031184903d05c08e"
+  },
+  {
+    "file": "0031_source_project_idempotency.sql",
+    "sha256": "5be5e75c1ffbb66940db1a88ff3624864d3c95a94e2eac89a6ba6843c164bdc9"
+  }
+]
