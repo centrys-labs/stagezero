@@ -15,6 +15,7 @@ var C Config
 type Config struct {
 	DatabaseURL        string
 	EncryptionKey      string
+	MonitoringImage    string
 	GitHubClientID     string
 	GitHubClientSecret string
 	GoogleClientID     string
@@ -28,6 +29,7 @@ func Load() error {
 	C = Config{
 		DatabaseURL:        envDefault("DATABASE_URL", "postgres://stagezero:password@localhost:5432/stagezero"),
 		EncryptionKey:      os.Getenv("ENCRYPTION_KEY"),
+		MonitoringImage:    envDefault("MONITORING_IMAGE", "ghcr.io/wahyus002/uploy-monitor:0.1.0"),
 		GitHubClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
@@ -90,6 +92,9 @@ func Load() error {
 	if C.EncryptionKey == "" {
 		return fmt.Errorf("ENCRYPTION_KEY is required (64 hex chars for AES-256)")
 	}
+	if !pinnedImage(C.MonitoringImage) {
+		return fmt.Errorf("MONITORING_IMAGE must use a version tag or digest")
+	}
 	if err := crypto.Init(C.EncryptionKey); err != nil {
 		return err
 	}
@@ -106,6 +111,20 @@ func positiveEnv(key string, value *int64) error {
 		*value = n
 	}
 	return nil
+}
+
+func pinnedImage(image string) bool {
+	for index := len(image) - 1; index >= 0; index-- {
+		switch image[index] {
+		case '@':
+			return index < len(image)-1
+		case ':':
+			return index < len(image)-1 && image[index+1:] != "latest"
+		case '/':
+			return false
+		}
+	}
+	return false
 }
 
 func envDefault(key, fallback string) string {

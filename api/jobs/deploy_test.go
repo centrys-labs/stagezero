@@ -65,7 +65,7 @@ func TestBuildDockerRunCmdAddsDeploymentOwnershipLabels(t *testing.T) {
 		ContainerPort: 80,
 		Domains:       []string{"example.com"},
 	})
-	for _, label := range []string{"--label stagezero.service_id=service-1", "--label stagezero.deployment_id=deployment-1"} {
+	for _, label := range []string{"--label stagezero.service_id=service-1", "--label stagezero.deployment_id=deployment-1", "--label uploy.deployment_id=deployment-1"} {
 		if !strings.Contains(cmd, label) {
 			t.Errorf("missing ownership label %q: %s", label, cmd)
 		}

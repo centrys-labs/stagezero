@@ -19,6 +19,69 @@ const (
 	CookieAuthScopes = "cookieAuth.Scopes"
 )
 
+// Defines values for AlertCondition.
+const (
+	CpuHigh           AlertCondition = "cpu_high"
+	DiskLow           AlertCondition = "disk_low"
+	MemoryHigh        AlertCondition = "memory_high"
+	ServerUnreachable AlertCondition = "server_unreachable"
+	ServiceDown       AlertCondition = "service_down"
+)
+
+// Valid indicates whether the value is a known member of the AlertCondition enum.
+func (e AlertCondition) Valid() bool {
+	switch e {
+	case CpuHigh:
+		return true
+	case DiskLow:
+		return true
+	case MemoryHigh:
+		return true
+	case ServerUnreachable:
+		return true
+	case ServiceDown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertEventResponseStatus.
+const (
+	Firing   AlertEventResponseStatus = "firing"
+	Resolved AlertEventResponseStatus = "resolved"
+)
+
+// Valid indicates whether the value is a known member of the AlertEventResponseStatus enum.
+func (e AlertEventResponseStatus) Valid() bool {
+	switch e {
+	case Firing:
+		return true
+	case Resolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AlertScopeType.
+const (
+	Server  AlertScopeType = "server"
+	Service AlertScopeType = "service"
+)
+
+// Valid indicates whether the value is a known member of the AlertScopeType enum.
+func (e AlertScopeType) Valid() bool {
+	switch e {
+	case Server:
+		return true
+	case Service:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ConfigChangeType.
 const (
 	Added   ConfigChangeType = "added"
@@ -55,21 +118,42 @@ func (e CreateServiceRequestKind) Valid() bool {
 	}
 }
 
+// Defines values for DeploymentMarkerStatus.
+const (
+	DeploymentMarkerStatusFailed     DeploymentMarkerStatus = "failed"
+	DeploymentMarkerStatusInProgress DeploymentMarkerStatus = "in_progress"
+	DeploymentMarkerStatusSuccess    DeploymentMarkerStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the DeploymentMarkerStatus enum.
+func (e DeploymentMarkerStatus) Valid() bool {
+	switch e {
+	case DeploymentMarkerStatusFailed:
+		return true
+	case DeploymentMarkerStatusInProgress:
+		return true
+	case DeploymentMarkerStatusSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeploymentResponseStatus.
 const (
-	Failed     DeploymentResponseStatus = "failed"
-	InProgress DeploymentResponseStatus = "in_progress"
-	Success    DeploymentResponseStatus = "success"
+	DeploymentResponseStatusFailed     DeploymentResponseStatus = "failed"
+	DeploymentResponseStatusInProgress DeploymentResponseStatus = "in_progress"
+	DeploymentResponseStatusSuccess    DeploymentResponseStatus = "success"
 )
 
 // Valid indicates whether the value is a known member of the DeploymentResponseStatus enum.
 func (e DeploymentResponseStatus) Valid() bool {
 	switch e {
-	case Failed:
+	case DeploymentResponseStatusFailed:
 		return true
-	case InProgress:
+	case DeploymentResponseStatusInProgress:
 		return true
-	case Success:
+	case DeploymentResponseStatusSuccess:
 		return true
 	default:
 		return false
@@ -78,25 +162,40 @@ func (e DeploymentResponseStatus) Valid() bool {
 
 // Defines values for ErrorResponseCode.
 const (
-	DockerMissing ErrorResponseCode = "docker_missing"
-	KeyInvalid    ErrorResponseCode = "key_invalid"
-	KeyRejected   ErrorResponseCode = "key_rejected"
-	SessionFailed ErrorResponseCode = "session_failed"
-	Unreachable   ErrorResponseCode = "unreachable"
+	ErrorResponseCodeDockerMissing ErrorResponseCode = "docker_missing"
+	ErrorResponseCodeKeyInvalid    ErrorResponseCode = "key_invalid"
+	ErrorResponseCodeKeyRejected   ErrorResponseCode = "key_rejected"
+	ErrorResponseCodeSessionFailed ErrorResponseCode = "session_failed"
+	ErrorResponseCodeUnreachable   ErrorResponseCode = "unreachable"
 )
 
 // Valid indicates whether the value is a known member of the ErrorResponseCode enum.
 func (e ErrorResponseCode) Valid() bool {
 	switch e {
-	case DockerMissing:
+	case ErrorResponseCodeDockerMissing:
 		return true
-	case KeyInvalid:
+	case ErrorResponseCodeKeyInvalid:
 		return true
-	case KeyRejected:
+	case ErrorResponseCodeKeyRejected:
 		return true
-	case SessionFailed:
+	case ErrorResponseCodeSessionFailed:
 		return true
-	case Unreachable:
+	case ErrorResponseCodeUnreachable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for HealthResponseStatus.
+const (
+	HealthResponseStatusOk HealthResponseStatus = "ok"
+)
+
+// Valid indicates whether the value is a known member of the HealthResponseStatus enum.
+func (e HealthResponseStatus) Valid() bool {
+	switch e {
+	case HealthResponseStatusOk:
 		return true
 	default:
 		return false
@@ -115,6 +214,93 @@ func (e LogEntryType) Valid() bool {
 	case Stderr:
 		return true
 	case Stdout:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationChannelType.
+const (
+	Discord  NotificationChannelType = "discord"
+	Email    NotificationChannelType = "email"
+	Slack    NotificationChannelType = "slack"
+	Telegram NotificationChannelType = "telegram"
+	Webhook  NotificationChannelType = "webhook"
+)
+
+// Valid indicates whether the value is a known member of the NotificationChannelType enum.
+func (e NotificationChannelType) Valid() bool {
+	switch e {
+	case Discord:
+		return true
+	case Email:
+		return true
+	case Slack:
+		return true
+	case Telegram:
+		return true
+	case Webhook:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessResponseDatabase.
+const (
+	ReadinessResponseDatabaseOk          ReadinessResponseDatabase = "ok"
+	ReadinessResponseDatabaseUnavailable ReadinessResponseDatabase = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessResponseDatabase enum.
+func (e ReadinessResponseDatabase) Valid() bool {
+	switch e {
+	case ReadinessResponseDatabaseOk:
+		return true
+	case ReadinessResponseDatabaseUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReadinessResponseStatus.
+const (
+	ReadinessResponseStatusNotReady ReadinessResponseStatus = "not_ready"
+	ReadinessResponseStatusReady    ReadinessResponseStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ReadinessResponseStatus enum.
+func (e ReadinessResponseStatus) Valid() bool {
+	switch e {
+	case ReadinessResponseStatusNotReady:
+		return true
+	case ReadinessResponseStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServerMonitoringResponseStatus.
+const (
+	ServerMonitoringResponseStatusDisabled     ServerMonitoringResponseStatus = "disabled"
+	ServerMonitoringResponseStatusError        ServerMonitoringResponseStatus = "error"
+	ServerMonitoringResponseStatusProvisioning ServerMonitoringResponseStatus = "provisioning"
+	ServerMonitoringResponseStatusReady        ServerMonitoringResponseStatus = "ready"
+)
+
+// Valid indicates whether the value is a known member of the ServerMonitoringResponseStatus enum.
+func (e ServerMonitoringResponseStatus) Valid() bool {
+	switch e {
+	case ServerMonitoringResponseStatusDisabled:
+		return true
+	case ServerMonitoringResponseStatusError:
+		return true
+	case ServerMonitoringResponseStatusProvisioning:
+		return true
+	case ServerMonitoringResponseStatusReady:
 		return true
 	default:
 		return false
@@ -166,6 +352,36 @@ func (e ServiceDomainResponseStatus) Valid() bool {
 	}
 }
 
+// Defines values for ServiceMetricsStatus.
+const (
+	ServiceMetricsStatusError              ServiceMetricsStatus = "error"
+	ServiceMetricsStatusMonitoringDisabled ServiceMetricsStatus = "monitoring_disabled"
+	ServiceMetricsStatusNotDeployed        ServiceMetricsStatus = "not_deployed"
+	ServiceMetricsStatusRunning            ServiceMetricsStatus = "running"
+	ServiceMetricsStatusStopped            ServiceMetricsStatus = "stopped"
+	ServiceMetricsStatusUnreachable        ServiceMetricsStatus = "unreachable"
+)
+
+// Valid indicates whether the value is a known member of the ServiceMetricsStatus enum.
+func (e ServiceMetricsStatus) Valid() bool {
+	switch e {
+	case ServiceMetricsStatusError:
+		return true
+	case ServiceMetricsStatusMonitoringDisabled:
+		return true
+	case ServiceMetricsStatusNotDeployed:
+		return true
+	case ServiceMetricsStatusRunning:
+		return true
+	case ServiceMetricsStatusStopped:
+		return true
+	case ServiceMetricsStatusUnreachable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServiceResponseKind.
 const (
 	ServiceResponseKindApplication ServiceResponseKind = "application"
@@ -175,6 +391,60 @@ const (
 func (e ServiceResponseKind) Valid() bool {
 	switch e {
 	case ServiceResponseKindApplication:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetProjectMetricsHistoryParamsSince.
+const (
+	GetProjectMetricsHistoryParamsSinceN1h  GetProjectMetricsHistoryParamsSince = "1h"
+	GetProjectMetricsHistoryParamsSinceN24h GetProjectMetricsHistoryParamsSince = "24h"
+	GetProjectMetricsHistoryParamsSinceN30d GetProjectMetricsHistoryParamsSince = "30d"
+	GetProjectMetricsHistoryParamsSinceN6h  GetProjectMetricsHistoryParamsSince = "6h"
+	GetProjectMetricsHistoryParamsSinceN7d  GetProjectMetricsHistoryParamsSince = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetProjectMetricsHistoryParamsSince enum.
+func (e GetProjectMetricsHistoryParamsSince) Valid() bool {
+	switch e {
+	case GetProjectMetricsHistoryParamsSinceN1h:
+		return true
+	case GetProjectMetricsHistoryParamsSinceN24h:
+		return true
+	case GetProjectMetricsHistoryParamsSinceN30d:
+		return true
+	case GetProjectMetricsHistoryParamsSinceN6h:
+		return true
+	case GetProjectMetricsHistoryParamsSinceN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetServerMetricsHistoryParamsSince.
+const (
+	GetServerMetricsHistoryParamsSinceN1h  GetServerMetricsHistoryParamsSince = "1h"
+	GetServerMetricsHistoryParamsSinceN24h GetServerMetricsHistoryParamsSince = "24h"
+	GetServerMetricsHistoryParamsSinceN30d GetServerMetricsHistoryParamsSince = "30d"
+	GetServerMetricsHistoryParamsSinceN6h  GetServerMetricsHistoryParamsSince = "6h"
+	GetServerMetricsHistoryParamsSinceN7d  GetServerMetricsHistoryParamsSince = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetServerMetricsHistoryParamsSince enum.
+func (e GetServerMetricsHistoryParamsSince) Valid() bool {
+	switch e {
+	case GetServerMetricsHistoryParamsSinceN1h:
+		return true
+	case GetServerMetricsHistoryParamsSinceN24h:
+		return true
+	case GetServerMetricsHistoryParamsSinceN30d:
+		return true
+	case GetServerMetricsHistoryParamsSinceN6h:
+		return true
+	case GetServerMetricsHistoryParamsSinceN7d:
 		return true
 	default:
 		return false
@@ -234,6 +504,45 @@ func (e GetServiceLogsParamsSince) Valid() bool {
 		return false
 	}
 }
+
+// AlertCondition defines model for AlertCondition.
+type AlertCondition string
+
+// AlertEventResponse defines model for AlertEventResponse.
+type AlertEventResponse struct {
+	DurationSeconds *int                     `json:"duration_seconds,omitempty"`
+	Id              string                   `json:"id"`
+	ResolvedAt      *time.Time               `json:"resolved_at,omitempty"`
+	ResolvedValue   *float64                 `json:"resolved_value,omitempty"`
+	RuleId          string                   `json:"rule_id"`
+	StartedAt       time.Time                `json:"started_at"`
+	Status          AlertEventResponseStatus `json:"status"`
+	TargetId        string                   `json:"target_id"`
+	TargetName      string                   `json:"target_name"`
+	TriggerValue    float64                  `json:"trigger_value"`
+}
+
+// AlertEventResponseStatus defines model for AlertEventResponse.Status.
+type AlertEventResponseStatus string
+
+// AlertRuleResponse defines model for AlertRuleResponse.
+type AlertRuleResponse struct {
+	ChannelIds      []string       `json:"channel_ids"`
+	Condition       AlertCondition `json:"condition"`
+	CreatedAt       time.Time      `json:"created_at"`
+	DurationSeconds int            `json:"duration_seconds"`
+	Enabled         bool           `json:"enabled"`
+	Id              string         `json:"id"`
+	Name            string         `json:"name"`
+	ScopeType       AlertScopeType `json:"scope_type"`
+	ServerId        *string        `json:"server_id,omitempty"`
+	ServiceId       *string        `json:"service_id,omitempty"`
+	Threshold       float64        `json:"threshold"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+// AlertScopeType defines model for AlertScopeType.
+type AlertScopeType string
 
 // AnalyzeSourceRequest defines model for AnalyzeSourceRequest.
 type AnalyzeSourceRequest struct {
@@ -297,6 +606,58 @@ type ConfigChange struct {
 // ConfigChangeType defines model for ConfigChange.Type.
 type ConfigChangeType string
 
+// ConfigureServerMonitoringRequest defines model for ConfigureServerMonitoringRequest.
+type ConfigureServerMonitoringRequest struct {
+	// Fqdn Optional public FQDN. StageZero routes it through Traefik with HTTPS.
+	Fqdn *string `json:"fqdn,omitempty"`
+
+	// Port Loopback port the agent is published on. StageZero reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
+	Port *int `json:"port,omitempty"`
+
+	// ReaderToken Read token for external scrapers. Omit it — StageZero generates one on first setup and keeps the existing one afterwards.
+	ReaderToken   *string `json:"reader_token,omitempty"`
+	RetentionDays *int    `json:"retention_days,omitempty"`
+}
+
+// ContainerMetrics defines model for ContainerMetrics.
+type ContainerMetrics struct {
+	CpuPercent           float64 `json:"cpu_percent"`
+	Id                   string  `json:"id"`
+	MemoryLimitBytes     int64   `json:"memory_limit_bytes"`
+	MemoryUsedBytes      int64   `json:"memory_used_bytes"`
+	Name                 string  `json:"name"`
+	NetworkInBytesTotal  int64   `json:"network_in_bytes_total"`
+	NetworkOutBytesTotal int64   `json:"network_out_bytes_total"`
+	State                string  `json:"state"`
+	UptimeSeconds        int64   `json:"uptime_seconds"`
+}
+
+// ContainerMetricsSample defines model for ContainerMetricsSample.
+type ContainerMetricsSample struct {
+	ContainerId          string    `json:"container_id"`
+	ContainerName        string    `json:"container_name"`
+	CpuPercent           float64   `json:"cpu_percent"`
+	MemoryLimitBytes     int64     `json:"memory_limit_bytes"`
+	MemoryUsedBytes      int64     `json:"memory_used_bytes"`
+	NetworkInBytesTotal  int64     `json:"network_in_bytes_total"`
+	NetworkOutBytesTotal int64     `json:"network_out_bytes_total"`
+	SampledAt            time.Time `json:"sampled_at"`
+	State                string    `json:"state"`
+	UptimeSeconds        int64     `json:"uptime_seconds"`
+}
+
+// CreateAlertRuleRequest defines model for CreateAlertRuleRequest.
+type CreateAlertRuleRequest struct {
+	ChannelIds      []string       `json:"channel_ids"`
+	Condition       AlertCondition `json:"condition"`
+	DurationSeconds int            `json:"duration_seconds"`
+	Name            string         `json:"name"`
+	ScopeType       AlertScopeType `json:"scope_type"`
+	ServerId        *string        `json:"server_id,omitempty"`
+	ServiceId       *string        `json:"service_id,omitempty"`
+	Threshold       float64        `json:"threshold"`
+}
+
 // CreateDomainRequest defines model for CreateDomainRequest.
 type CreateDomainRequest struct {
 	Domain string `json:"domain"`
@@ -305,6 +666,13 @@ type CreateDomainRequest struct {
 // CreateEnvironmentRequest defines model for CreateEnvironmentRequest.
 type CreateEnvironmentRequest struct {
 	Name string `json:"name"`
+}
+
+// CreateNotificationChannelRequest defines model for CreateNotificationChannelRequest.
+type CreateNotificationChannelRequest struct {
+	Config NotificationChannelConfig `json:"config"`
+	Name   string                    `json:"name"`
+	Type   NotificationChannelType   `json:"type"`
 }
 
 // CreateProjectFromImageRequest defines model for CreateProjectFromImageRequest.
@@ -412,6 +780,31 @@ type DeployResponse struct {
 	DeploymentId string `json:"deployment_id"`
 }
 
+// DeploymentMarker defines model for DeploymentMarker.
+type DeploymentMarker struct {
+	At time.Time `json:"at"`
+
+	// Commit Commit-like image tag or digest when the image reference encodes one; empty otherwise.
+	Commit          string `json:"commit"`
+	DeploymentId    string `json:"deployment_id"`
+	DurationSeconds int    `json:"duration_seconds"`
+
+	// Image Image deployed by this run; used when source-control metadata is unavailable.
+	Image       string                 `json:"image"`
+	ServiceId   string                 `json:"service_id"`
+	ServiceName string                 `json:"service_name"`
+	Status      DeploymentMarkerStatus `json:"status"`
+}
+
+// DeploymentMarkerStatus defines model for DeploymentMarker.Status.
+type DeploymentMarkerStatus string
+
+// DeploymentMetricsHistory defines model for DeploymentMetricsHistory.
+type DeploymentMetricsHistory struct {
+	DeploymentId string                   `json:"deployment_id"`
+	Points       []ContainerMetricsSample `json:"points"`
+}
+
 // DeploymentResponse defines model for DeploymentResponse.
 type DeploymentResponse struct {
 	CreatedAt  time.Time                `json:"created_at"`
@@ -451,6 +844,14 @@ type GenerateSSHKeyRequest struct {
 	Name string `json:"name"`
 }
 
+// HealthResponse defines model for HealthResponse.
+type HealthResponse struct {
+	Status HealthResponseStatus `json:"status"`
+}
+
+// HealthResponseStatus defines model for HealthResponse.Status.
+type HealthResponseStatus string
+
 // LogEntry defines model for LogEntry.
 type LogEntry struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -477,12 +878,63 @@ type LogoutResponse struct {
 	Ok bool `json:"ok"`
 }
 
+// NotificationChannelConfig defines model for NotificationChannelConfig.
+type NotificationChannelConfig map[string]interface{}
+
+// NotificationChannelResponse defines model for NotificationChannelResponse.
+type NotificationChannelResponse struct {
+	Config NotificationChannelConfig `json:"config"`
+
+	// ConfiguredCredentials Names of configured credentials, never their values.
+	ConfiguredCredentials []string                `json:"configured_credentials"`
+	CreatedAt             time.Time               `json:"created_at"`
+	Enabled               bool                    `json:"enabled"`
+	Id                    string                  `json:"id"`
+	Name                  string                  `json:"name"`
+	Type                  NotificationChannelType `json:"type"`
+	UpdatedAt             time.Time               `json:"updated_at"`
+}
+
+// NotificationChannelType defines model for NotificationChannelType.
+type NotificationChannelType string
+
 // PendingChangesResponse defines model for PendingChangesResponse.
 type PendingChangesResponse struct {
 	Changes []ConfigChange `json:"changes"`
 
 	// HasBaseline False when there is no deployed configuration to compare against: the service has never deployed, or last deployed before StageZero recorded configurations. The service is pending either way, but changes is empty because no itemised answer exists — say so rather than showing an empty list under a badge that says otherwise.
 	HasBaseline bool `json:"has_baseline"`
+}
+
+// ProjectMetricsHistoryResponse defines model for ProjectMetricsHistoryResponse.
+type ProjectMetricsHistoryResponse struct {
+	// DeploymentMarkers Deployments created within the requested history window, including failed attempts.
+	DeploymentMarkers []DeploymentMarker      `json:"deployment_markers"`
+	Services          []ServiceMetricsHistory `json:"services"`
+}
+
+// ProjectMetricsResponse defines model for ProjectMetricsResponse.
+type ProjectMetricsResponse struct {
+	// RefreshAfterSeconds Recommended client refresh interval.
+	RefreshAfterSeconds int                   `json:"refresh_after_seconds"`
+	SampledAt           time.Time             `json:"sampled_at"`
+	Services            []ServiceMetrics      `json:"services"`
+	Summary             ProjectMetricsSummary `json:"summary"`
+
+	// UnmonitoredServers Servers that host an active deployment in this project but run no monitoring agent, deduplicated and sorted by name so a client can render one call to action per server rather than one per affected service.
+	UnmonitoredServers []UnmonitoredServer `json:"unmonitored_servers"`
+}
+
+// ProjectMetricsSummary defines model for ProjectMetricsSummary.
+type ProjectMetricsSummary struct {
+	CpuPercent           float64 `json:"cpu_percent"`
+	DegradedServices     int     `json:"degraded_services"`
+	MemoryLimitBytes     int64   `json:"memory_limit_bytes"`
+	MemoryUsedBytes      int64   `json:"memory_used_bytes"`
+	NetworkInBytesTotal  int64   `json:"network_in_bytes_total"`
+	NetworkOutBytesTotal int64   `json:"network_out_bytes_total"`
+	RunningServices      int     `json:"running_services"`
+	TotalServices        int     `json:"total_services"`
 }
 
 // ProjectResponse defines model for ProjectResponse.
@@ -494,6 +946,18 @@ type ProjectResponse struct {
 	WorkspaceId string    `json:"workspace_id"`
 }
 
+// ReadinessResponse defines model for ReadinessResponse.
+type ReadinessResponse struct {
+	Database ReadinessResponseDatabase `json:"database"`
+	Status   ReadinessResponseStatus   `json:"status"`
+}
+
+// ReadinessResponseDatabase defines model for ReadinessResponse.Database.
+type ReadinessResponseDatabase string
+
+// ReadinessResponseStatus defines model for ReadinessResponse.Status.
+type ReadinessResponseStatus string
+
 // SSHKeyResponse defines model for SSHKeyResponse.
 type SSHKeyResponse struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -504,11 +968,65 @@ type SSHKeyResponse struct {
 	PublicKey string `json:"public_key"`
 }
 
+// ServerDiskPartition defines model for ServerDiskPartition.
+type ServerDiskPartition struct {
+	Mountpoint  string  `json:"mountpoint"`
+	TotalBytes  int64   `json:"total_bytes"`
+	UsedBytes   int64   `json:"used_bytes"`
+	UsedPercent float64 `json:"used_percent"`
+}
+
+// ServerMetricsHistoryResponse defines model for ServerMetricsHistoryResponse.
+type ServerMetricsHistoryResponse struct {
+	Points []ServerMetricsResponse `json:"points"`
+}
+
+// ServerMetricsResponse defines model for ServerMetricsResponse.
+type ServerMetricsResponse struct {
+	DiskReadBytesTotal  int64                 `json:"disk_read_bytes_total"`
+	DiskTotalBytes      int64                 `json:"disk_total_bytes"`
+	DiskUsedBytes       int64                 `json:"disk_used_bytes"`
+	DiskUsedPercent     float64               `json:"disk_used_percent"`
+	DiskWriteBytesTotal int64                 `json:"disk_write_bytes_total"`
+	Load1               float64               `json:"load_1"`
+	Load15              float64               `json:"load_15"`
+	Load5               float64               `json:"load_5"`
+	Partitions          []ServerDiskPartition `json:"partitions"`
+	SampledAt           time.Time             `json:"sampled_at"`
+	SwapTotalBytes      int64                 `json:"swap_total_bytes"`
+	SwapUsedBytes       int64                 `json:"swap_used_bytes"`
+}
+
+// ServerMonitoringCredentialsResponse defines model for ServerMonitoringCredentialsResponse.
+type ServerMonitoringCredentialsResponse struct {
+	// MetricsUrl Public scrape URL. Present only when the server has a monitoring FQDN.
+	MetricsUrl *string `json:"metrics_url,omitempty"`
+
+	// ReaderToken Read-only token for `/metrics` and the JSON read endpoints.
+	ReaderToken string `json:"reader_token"`
+}
+
+// ServerMonitoringResponse defines model for ServerMonitoringResponse.
+type ServerMonitoringResponse struct {
+	CleanupAt        *time.Time                     `json:"cleanup_at,omitempty"`
+	Enabled          bool                           `json:"enabled"`
+	Fqdn             *string                        `json:"fqdn,omitempty"`
+	LastError        *string                        `json:"last_error,omitempty"`
+	LastReconciledAt *time.Time                     `json:"last_reconciled_at,omitempty"`
+	Port             int                            `json:"port"`
+	RetentionDays    int                            `json:"retention_days"`
+	Status           ServerMonitoringResponseStatus `json:"status"`
+}
+
+// ServerMonitoringResponseStatus defines model for ServerMonitoringResponse.Status.
+type ServerMonitoringResponseStatus string
+
 // ServerResponse defines model for ServerResponse.
 type ServerResponse struct {
 	CreatedAt             time.Time                 `json:"created_at"`
 	Host                  string                    `json:"host"`
 	Id                    string                    `json:"id"`
+	Monitoring            ServerMonitoringResponse  `json:"monitoring"`
 	Name                  string                    `json:"name"`
 	Port                  int                       `json:"port"`
 	ProxyLastError        *string                   `json:"proxy_last_error,omitempty"`
@@ -547,6 +1065,33 @@ type ServiceEnvResponse struct {
 	Key       string    `json:"key"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Value     string    `json:"value"`
+}
+
+// ServiceMetrics defines model for ServiceMetrics.
+type ServiceMetrics struct {
+	Container       *ContainerMetrics `json:"container,omitempty"`
+	DeploymentId    *string           `json:"deployment_id,omitempty"`
+	EnvironmentName string            `json:"environment_name"`
+	Error           *string           `json:"error,omitempty"`
+	Name            string            `json:"name"`
+
+	// ServerId Server running the active deployment; absent when nothing is deployed.
+	ServerId   *string `json:"server_id,omitempty"`
+	ServerName *string `json:"server_name,omitempty"`
+	ServiceId  string  `json:"service_id"`
+
+	// Status monitoring_disabled means the deployment server runs no monitoring agent, so StageZero has no metrics for it. It is a setup state, not a failure.
+	Status ServiceMetricsStatus `json:"status"`
+}
+
+// ServiceMetricsStatus monitoring_disabled means the deployment server runs no monitoring agent, so StageZero has no metrics for it. It is a setup state, not a failure.
+type ServiceMetricsStatus string
+
+// ServiceMetricsHistory defines model for ServiceMetricsHistory.
+type ServiceMetricsHistory struct {
+	Deployments []DeploymentMetricsHistory `json:"deployments"`
+	Name        string                     `json:"name"`
+	ServiceId   string                     `json:"service_id"`
 }
 
 // ServiceResponse defines model for ServiceResponse.
@@ -596,6 +1141,28 @@ type SourceDetection struct {
 	StartCommand    *string           `json:"start_command,omitempty"`
 }
 
+// UnmonitoredServer defines model for UnmonitoredServer.
+type UnmonitoredServer struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+
+	// ServiceCount Services in this project whose active deployment runs on this server.
+	ServiceCount int `json:"service_count"`
+}
+
+// UpdateAlertRuleRequest defines model for UpdateAlertRuleRequest.
+type UpdateAlertRuleRequest struct {
+	ChannelIds      []string       `json:"channel_ids"`
+	Condition       AlertCondition `json:"condition"`
+	DurationSeconds int            `json:"duration_seconds"`
+	Enabled         *bool          `json:"enabled,omitempty"`
+	Name            string         `json:"name"`
+	ScopeType       AlertScopeType `json:"scope_type"`
+	ServerId        *string        `json:"server_id,omitempty"`
+	ServiceId       *string        `json:"service_id,omitempty"`
+	Threshold       float64        `json:"threshold"`
+}
+
 // UpdateDomainRequest defines model for UpdateDomainRequest.
 type UpdateDomainRequest struct {
 	IsPrimary bool `json:"is_primary"`
@@ -604,6 +1171,14 @@ type UpdateDomainRequest struct {
 // UpdateEnvironmentRequest defines model for UpdateEnvironmentRequest.
 type UpdateEnvironmentRequest struct {
 	Name string `json:"name"`
+}
+
+// UpdateNotificationChannelRequest defines model for UpdateNotificationChannelRequest.
+type UpdateNotificationChannelRequest struct {
+	Config  NotificationChannelConfig `json:"config"`
+	Enabled *bool                     `json:"enabled,omitempty"`
+	Name    string                    `json:"name"`
+	Type    NotificationChannelType   `json:"type"`
 }
 
 // UpdateProjectRequest defines model for UpdateProjectRequest.
@@ -645,6 +1220,30 @@ type Workspace struct {
 	Role *string `json:"role,omitempty"`
 }
 
+// ListAlertHistoryParams defines parameters for ListAlertHistory.
+type ListAlertHistoryParams struct {
+	Limit  *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+}
+
+// GetProjectMetricsHistoryParams defines parameters for GetProjectMetricsHistory.
+type GetProjectMetricsHistoryParams struct {
+	Since     *GetProjectMetricsHistoryParamsSince `form:"since,omitempty" json:"since,omitempty"`
+	MaxPoints *int                                 `form:"max_points,omitempty" json:"max_points,omitempty"`
+}
+
+// GetProjectMetricsHistoryParamsSince defines parameters for GetProjectMetricsHistory.
+type GetProjectMetricsHistoryParamsSince string
+
+// GetServerMetricsHistoryParams defines parameters for GetServerMetricsHistory.
+type GetServerMetricsHistoryParams struct {
+	Since     *GetServerMetricsHistoryParamsSince `form:"since,omitempty" json:"since,omitempty"`
+	MaxPoints *int                                `form:"max_points,omitempty" json:"max_points,omitempty"`
+}
+
+// GetServerMetricsHistoryParamsSince defines parameters for GetServerMetricsHistory.
+type GetServerMetricsHistoryParamsSince string
+
 // GetProxyLogsParams defines parameters for GetProxyLogs.
 type GetProxyLogsParams struct {
 	// Since Only replay history from this far back. Omitted, the stream starts from the last 200 lines however old they are.
@@ -668,6 +1267,12 @@ type GetServiceLogsParams struct {
 // GetServiceLogsParamsSince defines parameters for GetServiceLogs.
 type GetServiceLogsParamsSince string
 
+// CreateAlertRuleJSONRequestBody defines body for CreateAlertRule for application/json ContentType.
+type CreateAlertRuleJSONRequestBody = CreateAlertRuleRequest
+
+// UpdateAlertRuleJSONRequestBody defines body for UpdateAlertRule for application/json ContentType.
+type UpdateAlertRuleJSONRequestBody = UpdateAlertRuleRequest
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -676,6 +1281,12 @@ type RegisterJSONRequestBody = LoginRequest
 
 // CreateDeploymentJSONRequestBody defines body for CreateDeployment for application/json ContentType.
 type CreateDeploymentJSONRequestBody = DeployRequest
+
+// CreateNotificationChannelJSONRequestBody defines body for CreateNotificationChannel for application/json ContentType.
+type CreateNotificationChannelJSONRequestBody = CreateNotificationChannelRequest
+
+// UpdateNotificationChannelJSONRequestBody defines body for UpdateNotificationChannel for application/json ContentType.
+type UpdateNotificationChannelJSONRequestBody = UpdateNotificationChannelRequest
 
 // CreateProjectJSONRequestBody defines body for CreateProject for application/json ContentType.
 type CreateProjectJSONRequestBody = CreateProjectRequest
@@ -700,6 +1311,9 @@ type CreateServerJSONRequestBody = CreateServerRequest
 
 // CheckConnectionJSONRequestBody defines body for CheckConnection for application/json ContentType.
 type CheckConnectionJSONRequestBody = CheckConnectionRequest
+
+// ConfigureServerMonitoringJSONRequestBody defines body for ConfigureServerMonitoring for application/json ContentType.
+type ConfigureServerMonitoringJSONRequestBody = ConfigureServerMonitoringRequest
 
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = CreateServiceRequest
@@ -730,6 +1344,21 @@ type GenerateSSHKeyJSONRequestBody = GenerateSSHKeyRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List alert rules
+	// (GET /api/alert-rules)
+	ListAlertRules(w http.ResponseWriter, r *http.Request)
+	// Create an alert rule
+	// (POST /api/alert-rules)
+	CreateAlertRule(w http.ResponseWriter, r *http.Request)
+	// Delete an alert rule
+	// (DELETE /api/alert-rules/{id})
+	DeleteAlertRule(w http.ResponseWriter, r *http.Request, id string)
+	// Update an alert rule
+	// (PUT /api/alert-rules/{id})
+	UpdateAlertRule(w http.ResponseWriter, r *http.Request, id string)
+	// List alert incidents
+	// (GET /api/alerts/history)
+	ListAlertHistory(w http.ResponseWriter, r *http.Request, params ListAlertHistoryParams)
 	// Login with email and password
 	// (POST /api/auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -748,6 +1377,21 @@ type ServerInterface interface {
 	// Stream deployment logs via SSE
 	// (GET /api/deployments/{id}/logs)
 	GetDeploymentLogs(w http.ResponseWriter, r *http.Request, id string)
+	// List notification channels
+	// (GET /api/notification-channels)
+	ListNotificationChannels(w http.ResponseWriter, r *http.Request)
+	// Create a notification channel
+	// (POST /api/notification-channels)
+	CreateNotificationChannel(w http.ResponseWriter, r *http.Request)
+	// Delete a notification channel
+	// (DELETE /api/notification-channels/{id})
+	DeleteNotificationChannel(w http.ResponseWriter, r *http.Request, id string)
+	// Update a notification channel
+	// (PUT /api/notification-channels/{id})
+	UpdateNotificationChannel(w http.ResponseWriter, r *http.Request, id string)
+	// Send a test notification
+	// (POST /api/notification-channels/{id}/test)
+	TestNotificationChannel(w http.ResponseWriter, r *http.Request, id string)
 	// List projects in workspace
 	// (GET /api/projects)
 	ListProjects(w http.ResponseWriter, r *http.Request)
@@ -784,6 +1428,12 @@ type ServerInterface interface {
 	// Update environment
 	// (PUT /api/projects/{id}/environments/{envId})
 	UpdateEnvironment(w http.ResponseWriter, r *http.Request, id string, envId string)
+	// Get current project container metrics
+	// (GET /api/projects/{id}/metrics)
+	GetProjectMetrics(w http.ResponseWriter, r *http.Request, id string)
+	// Get retained metrics grouped by service deployment
+	// (GET /api/projects/{id}/metrics/history)
+	GetProjectMetricsHistory(w http.ResponseWriter, r *http.Request, id string, params GetProjectMetricsHistoryParams)
 	// List services in a project
 	// (GET /api/projects/{id}/services)
 	ListProjectServices(w http.ResponseWriter, r *http.Request, id string)
@@ -796,6 +1446,27 @@ type ServerInterface interface {
 	// Test SSH connectivity to a server
 	// (POST /api/servers/check-connection)
 	CheckConnection(w http.ResponseWriter, r *http.Request)
+	// Get current server health metrics
+	// (GET /api/servers/{id}/metrics)
+	GetServerMetrics(w http.ResponseWriter, r *http.Request, id string)
+	// Get retained server health metrics
+	// (GET /api/servers/{id}/metrics/history)
+	GetServerMetricsHistory(w http.ResponseWriter, r *http.Request, id string, params GetServerMetricsHistoryParams)
+	// Disable retained metrics while retaining local history for seven days
+	// (DELETE /api/servers/{id}/monitoring)
+	DisableServerMonitoring(w http.ResponseWriter, r *http.Request, id string)
+	// Enable or update retained container metrics on a server
+	// (POST /api/servers/{id}/monitoring)
+	ConfigureServerMonitoring(w http.ResponseWriter, r *http.Request, id string)
+	// Read the scrape credentials an external collector needs
+	// (GET /api/servers/{id}/monitoring/credentials)
+	GetServerMonitoringCredentials(w http.ResponseWriter, r *http.Request, id string)
+	// Permanently delete retained monitoring history
+	// (DELETE /api/servers/{id}/monitoring/history)
+	DeleteServerMonitoringHistory(w http.ResponseWriter, r *http.Request, id string)
+	// Replace the read token and restart the agent with it
+	// (POST /api/servers/{id}/monitoring/reader-token)
+	RotateServerMonitoringReaderToken(w http.ResponseWriter, r *http.Request, id string)
 	// Install or upgrade the managed Traefik proxy
 	// (POST /api/servers/{id}/proxy)
 	UpgradeServerProxy(w http.ResponseWriter, r *http.Request, id string)
@@ -862,6 +1533,15 @@ type ServerInterface interface {
 	// Generate a new Ed25519 SSH keypair
 	// (POST /api/ssh-keys/generate)
 	GenerateSSHKey(w http.ResponseWriter, r *http.Request)
+	// Check whether the API process is alive
+	// (GET /healthz)
+	Healthz(w http.ResponseWriter, r *http.Request)
+	// Export internal API metrics
+	// (GET /metrics)
+	Metrics(w http.ResponseWriter, r *http.Request)
+	// Check whether the API is ready to serve traffic
+	// (GET /readyz)
+	Readyz(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -872,6 +1552,149 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAlertRules operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertRules(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertRules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAlertRule operation middleware
+func (siw *ServerInterfaceWrapper) CreateAlertRule(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAlertRule(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAlertRule operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAlertRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAlertRule(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAlertRule operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAlertRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAlertRule(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAlertHistory operation middleware
+func (siw *ServerInterfaceWrapper) ListAlertHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAlertHistoryParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", r.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAlertHistory(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
@@ -983,6 +1806,139 @@ func (siw *ServerInterfaceWrapper) GetDeploymentLogs(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetDeploymentLogs(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotificationChannels operation middleware
+func (siw *ServerInterfaceWrapper) ListNotificationChannels(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotificationChannels(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateNotificationChannel operation middleware
+func (siw *ServerInterfaceWrapper) CreateNotificationChannel(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateNotificationChannel(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteNotificationChannel operation middleware
+func (siw *ServerInterfaceWrapper) DeleteNotificationChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteNotificationChannel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateNotificationChannel operation middleware
+func (siw *ServerInterfaceWrapper) UpdateNotificationChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateNotificationChannel(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestNotificationChannel operation middleware
+func (siw *ServerInterfaceWrapper) TestNotificationChannel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestNotificationChannel(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1347,6 +2303,87 @@ func (siw *ServerInterfaceWrapper) UpdateEnvironment(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetProjectMetrics operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectMetrics(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetProjectMetricsHistory operation middleware
+func (siw *ServerInterfaceWrapper) GetProjectMetricsHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetProjectMetricsHistoryParams
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", r.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "max_points" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "max_points", r.URL.Query(), &params.MaxPoints, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "max_points", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetProjectMetricsHistory(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListProjectServices operation middleware
 func (siw *ServerInterfaceWrapper) ListProjectServices(w http.ResponseWriter, r *http.Request) {
 
@@ -1429,6 +2466,242 @@ func (siw *ServerInterfaceWrapper) CheckConnection(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CheckConnection(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServerMetrics operation middleware
+func (siw *ServerInterfaceWrapper) GetServerMetrics(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServerMetrics(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServerMetricsHistory operation middleware
+func (siw *ServerInterfaceWrapper) GetServerMetricsHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetServerMetricsHistoryParams
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", r.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "max_points" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "max_points", r.URL.Query(), &params.MaxPoints, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "max_points", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServerMetricsHistory(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableServerMonitoring operation middleware
+func (siw *ServerInterfaceWrapper) DisableServerMonitoring(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableServerMonitoring(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureServerMonitoring operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureServerMonitoring(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureServerMonitoring(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServerMonitoringCredentials operation middleware
+func (siw *ServerInterfaceWrapper) GetServerMonitoringCredentials(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServerMonitoringCredentials(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteServerMonitoringHistory operation middleware
+func (siw *ServerInterfaceWrapper) DeleteServerMonitoringHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteServerMonitoringHistory(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateServerMonitoringReaderToken operation middleware
+func (siw *ServerInterfaceWrapper) RotateServerMonitoringReaderToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, CookieAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateServerMonitoringReaderToken(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2103,6 +3376,48 @@ func (siw *ServerInterfaceWrapper) GenerateSSHKey(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// Healthz operation middleware
+func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Healthz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Metrics operation middleware
+func (siw *ServerInterfaceWrapper) Metrics(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Metrics(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Readyz operation middleware
+func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Readyz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -2223,12 +3538,22 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("GET "+options.BaseURL+"/api/alert-rules", wrapper.ListAlertRules)
+	m.HandleFunc("POST "+options.BaseURL+"/api/alert-rules", wrapper.CreateAlertRule)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/alert-rules/{id}", wrapper.DeleteAlertRule)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/alert-rules/{id}", wrapper.UpdateAlertRule)
+	m.HandleFunc("GET "+options.BaseURL+"/api/alerts/history", wrapper.ListAlertHistory)
 	m.HandleFunc("POST "+options.BaseURL+"/api/auth/login", wrapper.Login)
 	m.HandleFunc("POST "+options.BaseURL+"/api/auth/logout", wrapper.Logout)
 	m.HandleFunc("GET "+options.BaseURL+"/api/auth/me", wrapper.GetMe)
 	m.HandleFunc("POST "+options.BaseURL+"/api/auth/register", wrapper.Register)
 	m.HandleFunc("POST "+options.BaseURL+"/api/deployments", wrapper.CreateDeployment)
 	m.HandleFunc("GET "+options.BaseURL+"/api/deployments/{id}/logs", wrapper.GetDeploymentLogs)
+	m.HandleFunc("GET "+options.BaseURL+"/api/notification-channels", wrapper.ListNotificationChannels)
+	m.HandleFunc("POST "+options.BaseURL+"/api/notification-channels", wrapper.CreateNotificationChannel)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/notification-channels/{id}", wrapper.DeleteNotificationChannel)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/notification-channels/{id}", wrapper.UpdateNotificationChannel)
+	m.HandleFunc("POST "+options.BaseURL+"/api/notification-channels/{id}/test", wrapper.TestNotificationChannel)
 	m.HandleFunc("GET "+options.BaseURL+"/api/projects", wrapper.ListProjects)
 	m.HandleFunc("POST "+options.BaseURL+"/api/projects", wrapper.CreateProject)
 	m.HandleFunc("POST "+options.BaseURL+"/api/projects/from-image", wrapper.CreateProjectFromImage)
@@ -2241,10 +3566,19 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/projects/{id}/environments/{envId}", wrapper.DeleteEnvironment)
 	m.HandleFunc("GET "+options.BaseURL+"/api/projects/{id}/environments/{envId}", wrapper.GetEnvironment)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/projects/{id}/environments/{envId}", wrapper.UpdateEnvironment)
+	m.HandleFunc("GET "+options.BaseURL+"/api/projects/{id}/metrics", wrapper.GetProjectMetrics)
+	m.HandleFunc("GET "+options.BaseURL+"/api/projects/{id}/metrics/history", wrapper.GetProjectMetricsHistory)
 	m.HandleFunc("GET "+options.BaseURL+"/api/projects/{id}/services", wrapper.ListProjectServices)
 	m.HandleFunc("GET "+options.BaseURL+"/api/servers", wrapper.ListServers)
 	m.HandleFunc("POST "+options.BaseURL+"/api/servers", wrapper.CreateServer)
 	m.HandleFunc("POST "+options.BaseURL+"/api/servers/check-connection", wrapper.CheckConnection)
+	m.HandleFunc("GET "+options.BaseURL+"/api/servers/{id}/metrics", wrapper.GetServerMetrics)
+	m.HandleFunc("GET "+options.BaseURL+"/api/servers/{id}/metrics/history", wrapper.GetServerMetricsHistory)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/servers/{id}/monitoring", wrapper.DisableServerMonitoring)
+	m.HandleFunc("POST "+options.BaseURL+"/api/servers/{id}/monitoring", wrapper.ConfigureServerMonitoring)
+	m.HandleFunc("GET "+options.BaseURL+"/api/servers/{id}/monitoring/credentials", wrapper.GetServerMonitoringCredentials)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/servers/{id}/monitoring/history", wrapper.DeleteServerMonitoringHistory)
+	m.HandleFunc("POST "+options.BaseURL+"/api/servers/{id}/monitoring/reader-token", wrapper.RotateServerMonitoringReaderToken)
 	m.HandleFunc("POST "+options.BaseURL+"/api/servers/{id}/proxy", wrapper.UpgradeServerProxy)
 	m.HandleFunc("GET "+options.BaseURL+"/api/servers/{id}/proxy-logs", wrapper.GetProxyLogs)
 	m.HandleFunc("GET "+options.BaseURL+"/api/services", wrapper.ListServices)
@@ -2267,6 +3601,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/ssh-keys", wrapper.ListSSHKeys)
 	m.HandleFunc("POST "+options.BaseURL+"/api/ssh-keys", wrapper.CreateSSHKey)
 	m.HandleFunc("POST "+options.BaseURL+"/api/ssh-keys/generate", wrapper.GenerateSSHKey)
+	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
+	m.HandleFunc("GET "+options.BaseURL+"/metrics", wrapper.Metrics)
+	m.HandleFunc("GET "+options.BaseURL+"/readyz", wrapper.Readyz)
 
 	return m
 }

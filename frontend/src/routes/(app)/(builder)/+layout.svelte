@@ -15,6 +15,7 @@
 	const builderRoutes = [
 		{ suffix: '/projects/new/image', label: 'New project / Docker Image' },
 		{ suffix: '/projects/new/repo', label: 'New project / GitHub Repository' },
+		{ suffix: '/projects/[id]/metrics', label: 'VM metrics' },
 		{ suffix: '/projects/[id]/settings', label: 'Project settings' },
 		{ suffix: '/projects/new', label: 'New project' },
 		{ suffix: '/projects/[id]', label: 'Project builder' }

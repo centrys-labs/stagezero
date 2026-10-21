@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"net"
 	"net/http"
 	"strings"
@@ -43,14 +43,14 @@ func probeServer(host string, port int, user, privateKey string) (*ssh.Client, *
 	if err := client.TestSession(); err != nil {
 		client.Close()
 		return nil, &probeFailure{
-			code:    gen.SessionFailed,
+			code:    gen.ErrorResponseCodeSessionFailed,
 			message: "Connected, but the server could not run a command: " + err.Error(),
 		}
 	}
 
 	if err := client.DetectDocker(); err != nil {
 		client.Close()
-		return nil, &probeFailure{code: gen.DockerMissing, message: err.Error()}
+		return nil, &probeFailure{code: gen.ErrorResponseCodeDockerMissing, message: err.Error()}
 	}
 
 	return client, nil
@@ -63,7 +63,7 @@ func probeServer(host string, port int, user, privateKey string) (*ssh.Client, *
 func classifyDialError(err error) *probeFailure {
 	if errors.Is(err, ssh.ErrInvalidPrivateKey) {
 		return &probeFailure{
-			code:    gen.KeyInvalid,
+			code:    gen.ErrorResponseCodeKeyInvalid,
 			message: "The stored SSH key could not be parsed: " + err.Error(),
 		}
 	}
@@ -71,13 +71,13 @@ func classifyDialError(err error) *probeFailure {
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
 		return &probeFailure{
-			code:    gen.Unreachable,
+			code:    gen.ErrorResponseCodeUnreachable,
 			message: "Could not reach the server: " + err.Error(),
 		}
 	}
 
 	return &probeFailure{
-		code:    gen.KeyRejected,
+		code:    gen.ErrorResponseCodeKeyRejected,
 		message: "SSH authentication failed: " + err.Error(),
 	}
 }
@@ -158,7 +158,7 @@ func (s *Server) CreateServer(w http.ResponseWriter, r *http.Request) {
 
 	srv, err := db.CreateServer(ctx, req.Name, req.Host, port, req.SshUser, req.SshKeyId, sc.WorkspaceID)
 	if err != nil {
-		log.Printf("CreateServer error: %v", err)
+		telemetry.Printf("CreateServer error: %v", err)
 		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to create server"})
 		return
 	}
@@ -195,7 +195,7 @@ func (s *Server) UpgradeServerProxy(w http.ResponseWriter, r *http.Request, id s
 		if errors.Is(err, pgx.ErrNoRows) {
 			respond.JSON(w, http.StatusNotFound, gen.ErrorResponse{Error: "server not found"})
 		} else {
-			log.Printf("GetServerWithKey id=%s error: %v", id, err)
+			telemetry.Printf("GetServerWithKey id=%s error: %v", id, err)
 			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to look up server"})
 		}
 		return
@@ -219,7 +219,7 @@ func (s *Server) UpgradeServerProxy(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	if err := db.SetServerProxyReady(r.Context(), id, "ready"); err != nil {
-		log.Printf("SetServerProxyReady id=%s error: %v", id, err)
+		telemetry.Printf("SetServerProxyReady id=%s error: %v", id, err)
 		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "proxy upgraded but status update failed"})
 		return
 	}
@@ -295,6 +295,11 @@ func serverToResponse(srv db.AppServer) gen.ServerResponse {
 		ProxyStatus:           gen.ServerResponseProxyStatus(srv.ProxyStatus),
 		ProxyLastReconciledAt: srv.ProxyLastReconciledAt,
 		ProxyLastError:        srv.ProxyLastError,
-		CreatedAt:             srv.CreatedAt,
+		Monitoring: gen.ServerMonitoringResponse{
+			Enabled: srv.Monitoring.Enabled, Port: int(srv.Monitoring.Port), RetentionDays: int(srv.Monitoring.RetentionDays),
+			Fqdn: srv.Monitoring.FQDN, Status: gen.ServerMonitoringResponseStatus(srv.Monitoring.Status),
+			LastReconciledAt: srv.Monitoring.LastReconciledAt, LastError: srv.Monitoring.LastError, CleanupAt: srv.Monitoring.CleanupAt,
+		},
+		CreatedAt: srv.CreatedAt,
 	}
 }

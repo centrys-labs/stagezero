@@ -1,0 +1,354 @@
+package handlers
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/centrys-labs/stagezero/auth"
+	"github.com/centrys-labs/stagezero/config"
+	"github.com/centrys-labs/stagezero/db"
+	"github.com/centrys-labs/stagezero/gen"
+	"github.com/centrys-labs/stagezero/monitoring"
+	"github.com/centrys-labs/stagezero/respond"
+	"github.com/centrys-labs/stagezero/ssh"
+	"github.com/jackc/pgx/v5"
+)
+
+func (s *Server) ConfigureServerMonitoring(w http.ResponseWriter, r *http.Request, id string) {
+	sc, _ := auth.GetSessionContext(r)
+	if sc.WorkspaceRole != "owner" {
+		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+		return
+	}
+	server, ok := s.workspaceServerWithKey(w, r, id, sc.WorkspaceID)
+	if !ok {
+		return
+	}
+
+	var req gen.ConfigureServerMonitoringRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "invalid request body"})
+		return
+	}
+	port := monitoring.AgentPort
+	if server.Monitoring.Port != 0 {
+		port = int(server.Monitoring.Port)
+	}
+	if req.Port != nil {
+		port = *req.Port
+	}
+	retentionDays := 7
+	if server.Monitoring.RetentionDays != 0 {
+		retentionDays = int(server.Monitoring.RetentionDays)
+	}
+	if req.RetentionDays != nil {
+		retentionDays = *req.RetentionDays
+	}
+	fqdn := monitoringFQDN(server)
+	if req.Fqdn != nil {
+		fqdn = strings.ToLower(strings.TrimSpace(*req.Fqdn))
+	}
+	if fqdn != "" && (!validFQDN.MatchString(fqdn) || len(fqdn) > 253) {
+		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "fqdn must be a valid domain name"})
+		return
+	}
+	readerToken := server.ReaderToken
+	if req.ReaderToken != nil {
+		readerToken = strings.TrimSpace(*req.ReaderToken)
+	}
+	// Generated rather than asked for. Only someone wiring up an external scraper
+	// ever needs to see this value, so enabling monitoring never mentions it; the
+	// credentials endpoint hands it out to whoever goes looking.
+	if readerToken == "" {
+		var err error
+		readerToken, err = generateMonitoringToken()
+		if err != nil {
+			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to generate monitoring token"})
+			return
+		}
+	}
+	if len(readerToken) < 32 || len(readerToken) > 512 {
+		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: "reader_token must contain 32 to 512 characters"})
+		return
+	}
+	controlToken := server.ControlToken
+	if controlToken == "" {
+		var err error
+		controlToken, err = generateMonitoringToken()
+		if err != nil {
+			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to generate monitoring token"})
+			return
+		}
+	}
+
+	agentConfig := monitoring.Config{
+		Image:         config.C.MonitoringImage,
+		HostPort:      port,
+		RetentionDays: retentionDays,
+		FQDN:          fqdn,
+		ControlToken:  controlToken,
+		ReaderToken:   readerToken,
+	}
+	if err := monitoring.ValidateConfig(agentConfig); err != nil {
+		respond.JSON(w, http.StatusBadRequest, gen.ErrorResponse{Error: err.Error()})
+		return
+	}
+	if fqdn != "" {
+		used, err := db.MonitoringFQDNInUse(r.Context(), id, fqdn)
+		if err != nil {
+			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to validate monitoring fqdn"})
+			return
+		}
+		if used {
+			respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "fqdn is already in use"})
+			return
+		}
+	}
+
+	desired := db.MonitoringConfig{
+		Enabled: true, Port: int32(port), RetentionDays: int32(retentionDays),
+		FQDN: fqdn, Status: "ready",
+	}
+	if err := monitoring.ChangeServerMonitoring(r.Context(), server, db.MonitoringIntent{
+		Config: desired, ControlToken: controlToken, ReaderToken: readerToken,
+	}); err != nil {
+		monitoringChangeError(w, err)
+		return
+	}
+	updated, err := db.GetServerByID(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "monitoring started but server reload failed"})
+		return
+	}
+	respond.JSON(w, http.StatusOK, serverToResponse(updated))
+}
+
+func (s *Server) DisableServerMonitoring(w http.ResponseWriter, r *http.Request, id string) {
+	sc, _ := auth.GetSessionContext(r)
+	if sc.WorkspaceRole != "owner" {
+		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+		return
+	}
+	server, ok := s.workspaceServerWithKey(w, r, id, sc.WorkspaceID)
+	if !ok {
+		return
+	}
+	pending, err := db.ServerMonitoringPending(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to check monitoring state"})
+		return
+	}
+	if pending {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress"})
+		return
+	}
+	if !server.Monitoring.Enabled {
+		current, err := db.GetServerByID(r.Context(), id)
+		if err != nil {
+			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to reload server"})
+			return
+		}
+		respond.JSON(w, http.StatusOK, serverToResponse(current))
+		return
+	}
+	state := monitoringDBConfig(server)
+	cleanupAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+	state.Enabled = false
+	state.Status = "disabled"
+	state.CleanupAt = &cleanupAt
+	if err := monitoring.ChangeServerMonitoring(r.Context(), server, db.MonitoringIntent{
+		Config: state, ControlToken: server.ControlToken, ReaderToken: server.ReaderToken,
+	}); err != nil {
+		monitoringChangeError(w, err)
+		return
+	}
+	updated, err := db.GetServerByID(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "monitoring stopped but server reload failed"})
+		return
+	}
+	respond.JSON(w, http.StatusOK, serverToResponse(updated))
+}
+
+func (s *Server) GetServerMonitoringCredentials(w http.ResponseWriter, r *http.Request, id string) {
+	sc, _ := auth.GetSessionContext(r)
+	if sc.WorkspaceRole != "owner" {
+		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+		return
+	}
+	server, ok := s.workspaceServerWithKey(w, r, id, sc.WorkspaceID)
+	if !ok {
+		return
+	}
+	pending, err := db.ServerMonitoringPending(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to check monitoring state"})
+		return
+	}
+	if pending {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress"})
+		return
+	}
+	if server.ReaderToken == "" {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring has never been configured on this server"})
+		return
+	}
+	respond.JSON(w, http.StatusOK, monitoringCredentials(server, server.ReaderToken))
+}
+
+func (s *Server) RotateServerMonitoringReaderToken(w http.ResponseWriter, r *http.Request, id string) {
+	sc, _ := auth.GetSessionContext(r)
+	if sc.WorkspaceRole != "owner" {
+		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+		return
+	}
+	server, ok := s.workspaceServerWithKey(w, r, id, sc.WorkspaceID)
+	if !ok {
+		return
+	}
+	if !server.Monitoring.Enabled {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring is not enabled on this server"})
+		return
+	}
+	readerToken, err := generateMonitoringToken()
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to generate monitoring token"})
+		return
+	}
+
+	state := monitoringDBConfig(server)
+	state.Status = "ready"
+	if err := monitoring.ChangeServerMonitoring(r.Context(), server, db.MonitoringIntent{
+		Config: state, ControlToken: server.ControlToken, ReaderToken: readerToken,
+	}); err != nil {
+		monitoringChangeError(w, err)
+		return
+	}
+	respond.JSON(w, http.StatusOK, monitoringCredentials(server, readerToken))
+}
+
+func monitoringChangeError(w http.ResponseWriter, err error) {
+	if errors.Is(err, db.ErrMonitoringBusy) || isUniqueViolation(err) {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress or fqdn is already in use"})
+		return
+	}
+	respond.JSON(w, http.StatusServiceUnavailable, gen.ErrorResponse{Error: "monitoring change pending; the server will be retried"})
+}
+
+func monitoringCredentials(server db.ServerWithKey, readerToken string) gen.ServerMonitoringCredentialsResponse {
+	res := gen.ServerMonitoringCredentialsResponse{ReaderToken: readerToken}
+	if fqdn := monitoringFQDN(server); fqdn != "" {
+		url := "https://" + fqdn + "/metrics"
+		res.MetricsUrl = &url
+	}
+	return res
+}
+
+func (s *Server) DeleteServerMonitoringHistory(w http.ResponseWriter, r *http.Request, id string) {
+	sc, _ := auth.GetSessionContext(r)
+	if sc.WorkspaceRole != "owner" {
+		respond.JSON(w, http.StatusForbidden, gen.ErrorResponse{Error: "insufficient permissions"})
+		return
+	}
+	server, ok := s.workspaceServerWithKey(w, r, id, sc.WorkspaceID)
+	if !ok {
+		return
+	}
+	pending, err := db.ServerMonitoringPending(r.Context(), id)
+	if err != nil {
+		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to check monitoring state"})
+		return
+	}
+	if pending {
+		respond.JSON(w, http.StatusConflict, gen.ErrorResponse{Error: "monitoring change is in progress"})
+		return
+	}
+	if server.Monitoring.Enabled {
+		err = monitoring.DeleteHistory(r.Context(), monitoringTarget(server), server.ControlToken)
+	} else {
+		var client *ssh.Client
+		client, err = monitoringClient(server)
+		if err == nil {
+			defer client.Close()
+			err = monitoring.DeleteLocalData(r.Context(), client)
+		}
+	}
+	if err != nil {
+		respond.JSON(w, http.StatusBadGateway, gen.ErrorResponse{Error: "failed to delete monitoring history: " + err.Error()})
+		return
+	}
+	if !server.Monitoring.Enabled {
+		if err := db.ClearServerMonitoringData(r.Context(), id); err != nil {
+			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "history deleted but cleanup state update failed"})
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) workspaceServerWithKey(w http.ResponseWriter, r *http.Request, id, workspaceID string) (db.ServerWithKey, bool) {
+	server, err := db.GetServerWithKey(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			respond.JSON(w, http.StatusNotFound, gen.ErrorResponse{Error: "server not found"})
+		} else {
+			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to look up server"})
+		}
+		return db.ServerWithKey{}, false
+	}
+	if server.WorkspaceID != workspaceID {
+		respond.JSON(w, http.StatusNotFound, gen.ErrorResponse{Error: "server not found"})
+		return db.ServerWithKey{}, false
+	}
+	return server, true
+}
+
+func monitoringClient(server db.ServerWithKey) (*ssh.Client, error) {
+	client, err := ssh.NewClient(ssh.ServerConfig{Host: server.Host, Port: int(server.Port), User: server.SSHUser, PrivateKey: server.PrivateKey})
+	if err != nil {
+		return nil, err
+	}
+	if err := client.DetectDocker(); err != nil {
+		client.Close()
+		return nil, err
+	}
+	return client, nil
+}
+
+// monitoringTarget describes how to reach a server's agent: through the SSH
+// connection StageZero already uses for that server, to the loopback port the agent
+// publishes on.
+func monitoringTarget(server db.ServerWithKey) monitoring.Target {
+	return monitoring.Target{
+		SSH:  ssh.ServerConfig{Host: server.Host, Port: int(server.Port), User: server.SSHUser, PrivateKey: server.PrivateKey},
+		Port: int(server.Monitoring.Port),
+	}
+}
+
+func monitoringFQDN(server db.ServerWithKey) string {
+	if server.Monitoring.FQDN == nil {
+		return ""
+	}
+	return *server.Monitoring.FQDN
+}
+
+func monitoringDBConfig(server db.ServerWithKey) db.MonitoringConfig {
+	return db.MonitoringConfig{
+		Enabled: server.Monitoring.Enabled, Port: server.Monitoring.Port, RetentionDays: server.Monitoring.RetentionDays,
+		FQDN: monitoringFQDN(server), Status: server.Monitoring.Status,
+		CleanupAt: server.Monitoring.CleanupAt,
+	}
+}
+
+func generateMonitoringToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}

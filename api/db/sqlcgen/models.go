@@ -10,6 +10,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AlertEvent struct {
+	ID            string             `json:"id"`
+	WorkspaceID   string             `json:"workspace_id"`
+	RuleID        string             `json:"rule_id"`
+	TargetID      string             `json:"target_id"`
+	TargetName    string             `json:"target_name"`
+	Status        string             `json:"status"`
+	StartedAt     time.Time          `json:"started_at"`
+	ResolvedAt    pgtype.Timestamptz `json:"resolved_at"`
+	TriggerValue  float64            `json:"trigger_value"`
+	ResolvedValue pgtype.Float8      `json:"resolved_value"`
+	CreatedAt     time.Time          `json:"created_at"`
+}
+
+type AlertRule struct {
+	ID              string      `json:"id"`
+	WorkspaceID     string      `json:"workspace_id"`
+	Name            string      `json:"name"`
+	Condition       string      `json:"condition"`
+	Threshold       float64     `json:"threshold"`
+	DurationSeconds int32       `json:"duration_seconds"`
+	ScopeType       string      `json:"scope_type"`
+	ServerID        pgtype.Text `json:"server_id"`
+	ServiceID       pgtype.Text `json:"service_id"`
+	Enabled         bool        `json:"enabled"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+}
+
+type AlertRuleChannel struct {
+	RuleID    string `json:"rule_id"`
+	ChannelID string `json:"channel_id"`
+}
+
 type Deployment struct {
 	ID                    string      `json:"id"`
 	Status                string      `json:"status"`
@@ -37,6 +71,17 @@ type Environment struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type NotificationChannel struct {
+	ID               string    `json:"id"`
+	WorkspaceID      string    `json:"workspace_id"`
+	Name             string    `json:"name"`
+	Type             string    `json:"type"`
+	ConfigCiphertext string    `json:"config_ciphertext"`
+	Enabled          bool      `json:"enabled"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
 type OauthIdentity struct {
 	ID             string    `json:"id"`
 	UserID         string    `json:"user_id"`
@@ -55,17 +100,29 @@ type Project struct {
 }
 
 type Server struct {
-	ID                    string             `json:"id"`
-	Name                  string             `json:"name"`
-	Host                  string             `json:"host"`
-	Port                  int32              `json:"port"`
-	SshUser               string             `json:"ssh_user"`
-	SshKeyID              string             `json:"ssh_key_id"`
-	WorkspaceID           string             `json:"workspace_id"`
-	CreatedAt             time.Time          `json:"created_at"`
-	ProxyStatus           string             `json:"proxy_status"`
-	ProxyLastReconciledAt pgtype.Timestamptz `json:"proxy_last_reconciled_at"`
-	ProxyLastError        pgtype.Text        `json:"proxy_last_error"`
+	ID                         string             `json:"id"`
+	Name                       string             `json:"name"`
+	Host                       string             `json:"host"`
+	Port                       int32              `json:"port"`
+	SshUser                    string             `json:"ssh_user"`
+	SshKeyID                   string             `json:"ssh_key_id"`
+	WorkspaceID                string             `json:"workspace_id"`
+	CreatedAt                  time.Time          `json:"created_at"`
+	ProxyStatus                string             `json:"proxy_status"`
+	ProxyLastReconciledAt      pgtype.Timestamptz `json:"proxy_last_reconciled_at"`
+	ProxyLastError             pgtype.Text        `json:"proxy_last_error"`
+	MonitoringEnabled          bool               `json:"monitoring_enabled"`
+	MonitoringPort             int32              `json:"monitoring_port"`
+	MonitoringRetentionDays    int32              `json:"monitoring_retention_days"`
+	MonitoringFqdn             pgtype.Text        `json:"monitoring_fqdn"`
+	MonitoringControlToken     pgtype.Text        `json:"monitoring_control_token"`
+	MonitoringReaderToken      pgtype.Text        `json:"monitoring_reader_token"`
+	MonitoringStatus           string             `json:"monitoring_status"`
+	MonitoringLastReconciledAt pgtype.Timestamptz `json:"monitoring_last_reconciled_at"`
+	MonitoringLastError        pgtype.Text        `json:"monitoring_last_error"`
+	MonitoringCleanupAt        pgtype.Timestamptz `json:"monitoring_cleanup_at"`
+	MonitoringPending          pgtype.Text        `json:"monitoring_pending"`
+	MonitoringPendingFqdn      pgtype.Text        `json:"monitoring_pending_fqdn"`
 }
 
 type Service struct {

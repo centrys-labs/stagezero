@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/centrys-labs/stagezero/telemetry"
 	gossh "golang.org/x/crypto/ssh"
 )
 
@@ -80,8 +81,10 @@ type ServerConfig struct {
 }
 
 func NewClient(cfg ServerConfig) (*Client, error) {
+	started := time.Now()
 	signer, err := gossh.ParsePrivateKey([]byte(cfg.PrivateKey))
 	if err != nil {
+		telemetry.Default.RecordSSHConnection(false, time.Since(started))
 		return nil, fmt.Errorf("%w: %v", ErrInvalidPrivateKey, err)
 	}
 
@@ -97,6 +100,7 @@ func NewClient(cfg ServerConfig) (*Client, error) {
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	client, err := gossh.Dial("tcp", addr, config)
+	telemetry.Default.RecordSSHConnection(err == nil, time.Since(started))
 	if err != nil {
 		return nil, fmt.Errorf("Cannot connect to %s: %w", addr, err)
 	}
@@ -112,6 +116,15 @@ func (c *Client) Close() {
 
 func (c *Client) Dial(network, address string) (net.Conn, error) {
 	return c.client.Dial(network, address)
+}
+
+// alive reports whether the underlying connection still answers. An unknown
+// global request is refused rather than honoured, but the refusal itself proves
+// the transport works — which is what tells a severed tunnel apart from a
+// perfectly healthy connection carrying a failed request.
+func (c *Client) alive() bool {
+	_, _, err := c.client.SendRequest("keepalive@openssh.com", true, nil)
+	return err == nil
 }
 
 func (c *Client) Run(ctx context.Context, command string) (string, error) {
@@ -139,6 +152,46 @@ func (c *Client) Run(ctx context.Context, command string) (string, error) {
 		<-done
 		return "", ctx.Err()
 	}
+}
+
+// RunWithInput runs command with stdin fed from input. Secrets that belong in a
+// file on the remote travel here rather than on the command line, where every
+// user on that host could read them out of the process table.
+func (c *Client) RunWithInput(ctx context.Context, command string, input []byte) (string, error) {
+	session, err := c.client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+	session.Stdin = bytes.NewReader(input)
+
+	type result struct {
+		output []byte
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		output, runErr := session.CombinedOutput(command)
+		done <- result{output: output, err: runErr}
+	}()
+
+	select {
+	case res := <-done:
+		return strings.TrimSpace(string(res.output)), res.err
+	case <-ctx.Done():
+		_ = session.Close()
+		<-done
+		return "", ctx.Err()
+	}
+}
+
+// RunElevated runs command directly for root clients and through non-interactive
+// sudo for other users.
+func (c *Client) RunElevated(ctx context.Context, command string) (string, error) {
+	if !c.IsRoot() {
+		command = "sudo -n " + command
+	}
+	return c.Run(ctx, command)
 }
 
 // TestSession opens an SSH session and runs "echo ok" to verify the server

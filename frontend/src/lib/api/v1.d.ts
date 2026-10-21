@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+	'/healthz': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Check whether the API process is alive */
+		get: operations['healthz'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/readyz': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Check whether the API is ready to serve traffic */
+		get: operations['readyz'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/metrics': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Export internal API metrics */
+		get: operations['metrics'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/auth/register': {
 		parameters: {
 			query?: never;
@@ -199,6 +250,215 @@ export interface paths {
 		patch?: never;
 		trace?: never;
 	};
+	'/api/servers/{id}/monitoring': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Enable or update retained container metrics on a server */
+		post: operations['configureServerMonitoring'];
+		/** Disable retained metrics while retaining local history for seven days */
+		delete: operations['disableServerMonitoring'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/servers/{id}/metrics': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get current server health metrics */
+		get: operations['getServerMetrics'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/servers/{id}/metrics/history': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get retained server health metrics */
+		get: operations['getServerMetricsHistory'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/servers/{id}/monitoring/credentials': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Read the scrape credentials an external collector needs */
+		get: operations['getServerMonitoringCredentials'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/servers/{id}/monitoring/reader-token': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Replace the read token and restart the agent with it */
+		post: operations['rotateServerMonitoringReaderToken'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/servers/{id}/monitoring/history': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		post?: never;
+		/** Permanently delete retained monitoring history */
+		delete: operations['deleteServerMonitoringHistory'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/notification-channels': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List notification channels */
+		get: operations['listNotificationChannels'];
+		put?: never;
+		/** Create a notification channel */
+		post: operations['createNotificationChannel'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/notification-channels/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		/** Update a notification channel */
+		put: operations['updateNotificationChannel'];
+		post?: never;
+		/** Delete a notification channel */
+		delete: operations['deleteNotificationChannel'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/notification-channels/{id}/test': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		put?: never;
+		/** Send a test notification */
+		post: operations['testNotificationChannel'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/alert-rules': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List alert rules */
+		get: operations['listAlertRules'];
+		put?: never;
+		/** Create an alert rule */
+		post: operations['createAlertRule'];
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/alert-rules/{id}': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		get?: never;
+		/** Update an alert rule */
+		put: operations['updateAlertRule'];
+		post?: never;
+		/** Delete an alert rule */
+		delete: operations['deleteAlertRule'];
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/alerts/history': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** List alert incidents */
+		get: operations['listAlertHistory'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
 	'/api/projects': {
 		parameters: {
 			query?: never;
@@ -316,6 +576,40 @@ export interface paths {
 		};
 		/** List services in a project */
 		get: operations['listProjectServices'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/projects/{id}/metrics': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get current project container metrics */
+		get: operations['getProjectMetrics'];
+		put?: never;
+		post?: never;
+		delete?: never;
+		options?: never;
+		head?: never;
+		patch?: never;
+		trace?: never;
+	};
+	'/api/projects/{id}/metrics/history': {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		/** Get retained metrics grouped by service deployment */
+		get: operations['getProjectMetricsHistory'];
 		put?: never;
 		post?: never;
 		delete?: never;
@@ -572,6 +866,96 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
 	schemas: {
+		HealthResponse: {
+			/** @enum {string} */
+			status: 'ok';
+		};
+		ReadinessResponse: {
+			/** @enum {string} */
+			status: 'ready' | 'not_ready';
+			/** @enum {string} */
+			database: 'ok' | 'unavailable';
+		};
+		NotificationChannelConfig: {
+			[key: string]: unknown;
+		};
+		/** @enum {string} */
+		NotificationChannelType: 'discord' | 'slack' | 'telegram' | 'email' | 'webhook';
+		CreateNotificationChannelRequest: {
+			name: string;
+			type: components['schemas']['NotificationChannelType'];
+			config: components['schemas']['NotificationChannelConfig'];
+		};
+		/** @description Omitted credential fields retain their stored values when the type is unchanged. A nonempty string replaces a credential; null removes an optional credential. Required credentials cannot be removed. Changing type requires new credentials. */
+		UpdateNotificationChannelRequest: components['schemas']['CreateNotificationChannelRequest'] & {
+			enabled?: boolean;
+		};
+		NotificationChannelResponse: {
+			id: string;
+			name: string;
+			type: components['schemas']['NotificationChannelType'];
+			enabled: boolean;
+			/** @description Only explicitly allowlisted non-secret fields; credentials are never returned. */
+			config: components['schemas']['NotificationChannelConfig'];
+			/** @description Names of configured credentials, never their values. */
+			configured_credentials: string[];
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
+		};
+		/** @enum {string} */
+		AlertCondition: 'cpu_high' | 'memory_high' | 'disk_low' | 'service_down' | 'server_unreachable';
+		/** @enum {string} */
+		AlertScopeType: 'server' | 'service';
+		CreateAlertRuleRequest: {
+			name: string;
+			condition: components['schemas']['AlertCondition'];
+			/** Format: double */
+			threshold: number;
+			duration_seconds: number;
+			scope_type: components['schemas']['AlertScopeType'];
+			server_id?: string;
+			service_id?: string;
+			channel_ids: string[];
+		};
+		UpdateAlertRuleRequest: components['schemas']['CreateAlertRuleRequest'] & {
+			enabled?: boolean;
+		};
+		AlertRuleResponse: {
+			id: string;
+			name: string;
+			condition: components['schemas']['AlertCondition'];
+			/** Format: double */
+			threshold: number;
+			duration_seconds: number;
+			scope_type: components['schemas']['AlertScopeType'];
+			server_id?: string;
+			service_id?: string;
+			channel_ids: string[];
+			enabled: boolean;
+			/** Format: date-time */
+			created_at: string;
+			/** Format: date-time */
+			updated_at: string;
+		};
+		AlertEventResponse: {
+			id: string;
+			rule_id: string;
+			target_id: string;
+			target_name: string;
+			/** @enum {string} */
+			status: 'firing' | 'resolved';
+			/** Format: date-time */
+			started_at: string;
+			/** Format: date-time */
+			resolved_at?: string;
+			/** Format: double */
+			trigger_value: number;
+			/** Format: double */
+			resolved_value?: number;
+			duration_seconds?: number;
+		};
 		LoginRequest: {
 			/** Format: email */
 			email: string;
@@ -687,8 +1071,81 @@ export interface components {
 			/** Format: date-time */
 			proxy_last_reconciled_at?: string;
 			proxy_last_error?: string;
+			monitoring: components['schemas']['ServerMonitoringResponse'];
 			/** Format: date-time */
 			created_at: string;
+		};
+		ConfigureServerMonitoringRequest: {
+			/**
+			 * @description Loopback port the agent is published on. StageZero reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
+			 * @default 9184
+			 */
+			port: number;
+			/** @default 7 */
+			retention_days: number;
+			/** @description Optional public FQDN. StageZero routes it through Traefik with HTTPS. */
+			fqdn?: string;
+			/**
+			 * Format: password
+			 * @description Read token for external scrapers. Omit it — StageZero generates one on first setup and keeps the existing one afterwards.
+			 */
+			reader_token?: string;
+		};
+		ServerMonitoringCredentialsResponse: {
+			/** @description Read-only token for `/metrics` and the JSON read endpoints. */
+			reader_token: string;
+			/** @description Public scrape URL. Present only when the server has a monitoring FQDN. */
+			metrics_url?: string;
+		};
+		ServerMonitoringResponse: {
+			enabled: boolean;
+			port: number;
+			retention_days: number;
+			fqdn?: string;
+			/** @enum {string} */
+			status: 'disabled' | 'provisioning' | 'ready' | 'error';
+			/** Format: date-time */
+			last_reconciled_at?: string;
+			last_error?: string;
+			/** Format: date-time */
+			cleanup_at?: string;
+		};
+		ServerMetricsResponse: {
+			/** Format: date-time */
+			sampled_at: string;
+			/** Format: int64 */
+			disk_used_bytes: number;
+			/** Format: int64 */
+			disk_total_bytes: number;
+			/** Format: double */
+			disk_used_percent: number;
+			/** Format: int64 */
+			disk_read_bytes_total: number;
+			/** Format: int64 */
+			disk_write_bytes_total: number;
+			/** Format: double */
+			load_1: number;
+			/** Format: double */
+			load_5: number;
+			/** Format: double */
+			load_15: number;
+			/** Format: int64 */
+			swap_used_bytes: number;
+			/** Format: int64 */
+			swap_total_bytes: number;
+			partitions: components['schemas']['ServerDiskPartition'][];
+		};
+		ServerDiskPartition: {
+			mountpoint: string;
+			/** Format: int64 */
+			used_bytes: number;
+			/** Format: int64 */
+			total_bytes: number;
+			/** Format: double */
+			used_percent: number;
+		};
+		ServerMetricsHistoryResponse: {
+			points: components['schemas']['ServerMetricsResponse'][];
 		};
 		LogEntry: {
 			/** Format: int64 */
@@ -846,6 +1303,123 @@ export interface components {
 			branch: string;
 			detected: components['schemas']['SourceDetection'];
 		};
+		ProjectMetricsResponse: {
+			/** Format: date-time */
+			sampled_at: string;
+			/** @description Recommended client refresh interval. */
+			refresh_after_seconds: number;
+			summary: components['schemas']['ProjectMetricsSummary'];
+			services: components['schemas']['ServiceMetrics'][];
+			/** @description Servers that host an active deployment in this project but run no monitoring agent, deduplicated and sorted by name so a client can render one call to action per server rather than one per affected service. */
+			unmonitored_servers: components['schemas']['UnmonitoredServer'][];
+		};
+		UnmonitoredServer: {
+			id: string;
+			name: string;
+			/** @description Services in this project whose active deployment runs on this server. */
+			service_count: number;
+		};
+		ProjectMetricsHistoryResponse: {
+			services: components['schemas']['ServiceMetricsHistory'][];
+			/** @description Deployments created within the requested history window, including failed attempts. */
+			deployment_markers: components['schemas']['DeploymentMarker'][];
+		};
+		DeploymentMarker: {
+			deployment_id: string;
+			service_id: string;
+			service_name: string;
+			/** Format: date-time */
+			at: string;
+			/** @enum {string} */
+			status: 'in_progress' | 'success' | 'failed';
+			duration_seconds: number;
+			/** @description Image deployed by this run; used when source-control metadata is unavailable. */
+			image: string;
+			/** @description Commit-like image tag or digest when the image reference encodes one; empty otherwise. */
+			commit: string;
+		};
+		ServiceMetricsHistory: {
+			service_id: string;
+			name: string;
+			deployments: components['schemas']['DeploymentMetricsHistory'][];
+		};
+		DeploymentMetricsHistory: {
+			deployment_id: string;
+			points: components['schemas']['ContainerMetricsSample'][];
+		};
+		ContainerMetricsSample: {
+			/** Format: date-time */
+			sampled_at: string;
+			container_id: string;
+			container_name: string;
+			state: string;
+			/** Format: double */
+			cpu_percent: number;
+			/** Format: int64 */
+			memory_used_bytes: number;
+			/** Format: int64 */
+			memory_limit_bytes: number;
+			/** Format: int64 */
+			network_in_bytes_total: number;
+			/** Format: int64 */
+			network_out_bytes_total: number;
+			/** Format: int64 */
+			uptime_seconds: number;
+		};
+		ProjectMetricsSummary: {
+			total_services: number;
+			running_services: number;
+			degraded_services: number;
+			/** Format: double */
+			cpu_percent: number;
+			/** Format: int64 */
+			memory_used_bytes: number;
+			/** Format: int64 */
+			memory_limit_bytes: number;
+			/** Format: int64 */
+			network_in_bytes_total: number;
+			/** Format: int64 */
+			network_out_bytes_total: number;
+		};
+		ServiceMetrics: {
+			service_id: string;
+			name: string;
+			environment_name: string;
+			/**
+			 * @description monitoring_disabled means the deployment server runs no monitoring agent, so StageZero has no metrics for it. It is a setup state, not a failure.
+			 * @enum {string}
+			 */
+			status:
+				| 'not_deployed'
+				| 'running'
+				| 'stopped'
+				| 'unreachable'
+				| 'error'
+				| 'monitoring_disabled';
+			deployment_id?: string;
+			/** @description Server running the active deployment; absent when nothing is deployed. */
+			server_id?: string;
+			server_name?: string;
+			error?: string;
+			container?: components['schemas']['ContainerMetrics'];
+		};
+		ContainerMetrics: {
+			id: string;
+			name: string;
+			state: string;
+			/** Format: double */
+			cpu_percent: number;
+			/** Format: int64 */
+			memory_used_bytes: number;
+			/** Format: int64 */
+			memory_limit_bytes: number;
+			/** Format: int64 */
+			network_in_bytes_total: number;
+			/** Format: int64 */
+			network_out_bytes_total: number;
+			/** Format: int64 */
+			uptime_seconds: number;
+		};
 		ConfigChange: {
 			/** @description Stable identifier for this change, unique within the list — "image", "domain:app.example.com", "env:DATABASE_URL". */
 			key: string;
@@ -913,6 +1487,75 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+	healthz: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description API process is alive */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['HealthResponse'];
+				};
+			};
+		};
+	};
+	readyz: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description API and database are ready */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ReadinessResponse'];
+				};
+			};
+			/** @description API dependencies are unavailable */
+			503: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ReadinessResponse'];
+				};
+			};
+		};
+	};
+	metrics: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Prometheus/OpenMetrics text exposition */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'text/plain': string;
+				};
+			};
+		};
+	};
 	register: {
 		parameters: {
 			query?: never;
@@ -1549,6 +2192,856 @@ export interface operations {
 			};
 			/** @description The server could not be reached, or has no usable Docker */
 			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	configureServerMonitoring: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['ConfigureServerMonitoringRequest'];
+			};
+		};
+		responses: {
+			/** @description Monitoring agent provisioned */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ServerResponse'];
+				};
+			};
+			/** @description Invalid monitoring configuration */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Insufficient permissions */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring FQDN is already in use */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring agent could not be provisioned */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	disableServerMonitoring: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Monitoring agent removed */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ServerResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Insufficient permissions */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring agent could not be removed */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	getServerMetrics: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current server health metrics */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ServerMetricsResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring is not enabled on this server */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring agent could not be reached */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	getServerMetricsHistory: {
+		parameters: {
+			query?: {
+				since?: '1h' | '6h' | '24h' | '7d' | '30d';
+				max_points?: number;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Retained server health metrics */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ServerMetricsHistoryResponse'];
+				};
+			};
+			/** @description Invalid history parameters */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring is not enabled on this server */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring agent could not be reached */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	getServerMonitoringCredentials: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Scrape credentials */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ServerMonitoringCredentialsResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Insufficient permissions */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring has never been configured on this server */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	rotateServerMonitoringReaderToken: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Scrape credentials, holding the replacement token */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ServerMonitoringCredentialsResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Insufficient permissions */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring is not enabled on this server */
+			409: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description The agent could not be restarted with the new token */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	deleteServerMonitoringHistory: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description History deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Insufficient permissions */
+			403: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Server not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Monitoring history could not be deleted */
+			422: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	listNotificationChannels: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Notification channels */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NotificationChannelResponse'][];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	createNotificationChannel: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['CreateNotificationChannelRequest'];
+			};
+		};
+		responses: {
+			/** @description Notification channel created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NotificationChannelResponse'];
+				};
+			};
+			/** @description Invalid channel configuration */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	updateNotificationChannel: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['UpdateNotificationChannelRequest'];
+			};
+		};
+		responses: {
+			/** @description Notification channel updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['NotificationChannelResponse'];
+				};
+			};
+			/** @description Invalid channel configuration */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Channel not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	deleteNotificationChannel: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Notification channel deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Channel not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	testNotificationChannel: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Test notification sent */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Channel not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Notification provider rejected the test */
+			502: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	listAlertRules: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Alert rules */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AlertRuleResponse'][];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	createAlertRule: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['CreateAlertRuleRequest'];
+			};
+		};
+		responses: {
+			/** @description Alert rule created */
+			201: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AlertRuleResponse'];
+				};
+			};
+			/** @description Invalid alert rule */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	updateAlertRule: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody: {
+			content: {
+				'application/json': components['schemas']['UpdateAlertRuleRequest'];
+			};
+		};
+		responses: {
+			/** @description Alert rule updated */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AlertRuleResponse'];
+				};
+			};
+			/** @description Invalid alert rule */
+			400: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Alert rule not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	deleteAlertRule: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Alert rule deleted */
+			204: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content?: never;
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Alert rule not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	listAlertHistory: {
+		parameters: {
+			query?: {
+				limit?: number;
+				offset?: number;
+			};
+			header?: never;
+			path?: never;
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Alert incidents */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['AlertEventResponse'][];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
 				headers: {
 					[name: string]: unknown;
 				};
@@ -2273,6 +3766,107 @@ export interface operations {
 			};
 			/** @description Internal server error */
 			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	getProjectMetrics: {
+		parameters: {
+			query?: never;
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Current metrics for active project deployments */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ProjectMetricsResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Project not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Internal server error */
+			500: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+		};
+	};
+	getProjectMetricsHistory: {
+		parameters: {
+			query?: {
+				since?: '1h' | '6h' | '24h' | '7d' | '30d';
+				max_points?: number;
+			};
+			header?: never;
+			path: {
+				id: string;
+			};
+			cookie?: never;
+		};
+		requestBody?: never;
+		responses: {
+			/** @description Retained samples per deployment */
+			200: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ProjectMetricsHistoryResponse'];
+				};
+			};
+			/** @description Not authenticated */
+			401: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description Project not found */
+			404: {
+				headers: {
+					[name: string]: unknown;
+				};
+				content: {
+					'application/json': components['schemas']['ErrorResponse'];
+				};
+			};
+			/** @description A monitoring agent could not be reached */
+			502: {
 				headers: {
 					[name: string]: unknown;
 				};

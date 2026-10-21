@@ -21,6 +21,8 @@ type Deployment struct {
 	WorkspaceID string
 	ServiceID   string
 	CreatedAt   time.Time
+	StartedAt   time.Time
+	CompletedAt *time.Time
 	Phase       string
 	IsActive    bool
 	IsDraining  bool
@@ -36,6 +38,7 @@ func newDeployment(id, status string, workspaceID pgtype.Text, serviceID string,
 		Status:    status,
 		ServiceID: serviceID,
 		CreatedAt: createdAt,
+		StartedAt: createdAt,
 	}
 	if workspaceID.Valid {
 		dep.WorkspaceID = workspaceID.String
@@ -80,6 +83,13 @@ func ListDeploymentsByService(ctx context.Context, serviceID string, limit int32
 	for i, r := range rows {
 		deps[i] = newDeployment(r.ID, r.Status, r.WorkspaceID, r.ServiceID, r.CreatedAt)
 		deps[i].Phase = r.Phase
+		if !r.StartedAt.IsZero() {
+			deps[i].StartedAt = r.StartedAt
+		}
+		if !r.CompletedAt.IsZero() {
+			completedAt := r.CompletedAt
+			deps[i].CompletedAt = &completedAt
+		}
 		deps[i].IsActive = r.IsActive
 		deps[i].IsDraining = r.IsDraining
 		if r.ConfigurationSnapshot.Valid {
@@ -92,8 +102,33 @@ func ListDeploymentsByService(ctx context.Context, serviceID string, limit int32
 	return deps, nil
 }
 
+func ListDeploymentsByServiceInWindow(ctx context.Context, serviceID string, from, to time.Time) ([]Deployment, error) {
+	if from.After(to) {
+		return nil, fmt.Errorf("metrics history start must not follow end")
+	}
+	rows, err := Queries.ListDeploymentsByServiceInWindow(ctx, sqlcgen.ListDeploymentsByServiceInWindowParams{
+		ServiceID: serviceID, WindowStart: from, WindowEnd: to,
+	})
+	if err != nil {
+		return nil, err
+	}
+	deployments := make([]Deployment, len(rows))
+	for i, row := range rows {
+		deployment := newDeployment(row.ID, row.Status, row.WorkspaceID, row.ServiceID, row.CreatedAt)
+		deployment.StartedAt = row.StartedAt
+		completedAt := row.CompletedAt
+		deployment.CompletedAt = &completedAt
+		deployments[i] = deployment
+	}
+	return deployments, nil
+}
+
 func ListInProgressDeploymentIDs(ctx context.Context) ([]string, error) {
 	return Queries.ListInProgressDeploymentIDs(ctx)
+}
+
+func ServiceHasInProgressDeployment(ctx context.Context, serviceID string) (bool, error) {
+	return Queries.ServiceHasInProgressDeployment(ctx, serviceID)
 }
 
 func GetLatestDeploymentPhase(ctx context.Context, deploymentID string) (string, error) {

@@ -15,9 +15,11 @@ import (
 
 	"github.com/centrys-labs/stagezero/broker"
 	"github.com/centrys-labs/stagezero/db"
+	dockerapi "github.com/centrys-labs/stagezero/docker"
 	"github.com/centrys-labs/stagezero/proxy"
 	"github.com/centrys-labs/stagezero/source"
 	"github.com/centrys-labs/stagezero/ssh"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"github.com/jackc/pgx/v5"
 	gossh "golang.org/x/crypto/ssh"
 )
@@ -88,21 +90,22 @@ func sortedEnvVars(envVars []db.EnvPair) []db.EnvPair {
 
 func appendLog(ctx context.Context, deploymentID, msg, logType, phase string) {
 	if err := db.AppendLog(ctx, deploymentID, msg, logType, phase); err != nil {
-		log.Printf("AppendLog deploymentID=%s error: %v", deploymentID, err)
+		telemetry.Printf("AppendLog deploymentID=%s error: %v", deploymentID, err)
 	}
 }
 
 func failDeploy(deploymentID, msg string) {
-	log.Println(msg)
+	telemetry.Println(msg)
 
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	appendLog(cleanupCtx, deploymentID, msg, "stderr", "")
 	if err := db.SetDeploymentStatus(cleanupCtx, deploymentID, "failed"); err != nil {
-		log.Printf("SetDeploymentStatus deploymentID=%s error: %v", deploymentID, err)
+		telemetry.Printf("SetDeploymentStatus deploymentID=%s error: %v", deploymentID, err)
 		return
 	}
+	recordDeploymentDuration(cleanupCtx, deploymentID, "failed")
 
 	appendLog(cleanupCtx, deploymentID, "deployment failed", "stderr", "failed")
 	broker.PublishDone(deploymentID, "failed")
@@ -113,18 +116,28 @@ func finishDeploy(deploymentID, status string) {
 	defer cancel()
 
 	if err := db.SetDeploymentStatus(cleanupCtx, deploymentID, status); err != nil {
-		log.Printf("SetDeploymentStatus deploymentID=%s error: %v", deploymentID, err)
+		telemetry.Printf("SetDeploymentStatus deploymentID=%s error: %v", deploymentID, err)
 		return
 	}
+	recordDeploymentDuration(cleanupCtx, deploymentID, status)
 
 	appendLog(cleanupCtx, deploymentID, fmt.Sprintf("deployment %s", status), "stdout", "complete")
 	broker.PublishDone(deploymentID, status)
 }
 
+func recordDeploymentDuration(ctx context.Context, deploymentID, status string) {
+	deployment, err := db.GetDeployment(ctx, deploymentID)
+	if err != nil {
+		telemetry.Printf("GetDeployment deploymentID=%s error: %v", deploymentID, err)
+		return
+	}
+	telemetry.Default.RecordDeployment(status, time.Since(deployment.CreatedAt))
+}
+
 func RunDeploy(cfg DeployConfig) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("Recovered deploymentID=%s: %v\n%s", cfg.DeploymentID, r, debug.Stack())
+			telemetry.Printf("Recovered deploymentID=%s: %v\n%s", cfg.DeploymentID, r, debug.Stack())
 			failDeploy(cfg.DeploymentID, fmt.Sprintf("panic: %v", r))
 		}
 	}()
@@ -439,7 +452,7 @@ func runRollingDeploy(ctx context.Context, client *ssh.Client, docker string, cf
 	appendLog(ctx, cfg.DeploymentID, "checking rolling proxy capability...", "stdout", "proxy_setup")
 	if err := proxy.VerifyRollingReady(ctx, client); err != nil {
 		if dbErr := db.SetServerProxyError(ctx, cfg.ServerID, "degraded", err.Error()); dbErr != nil {
-			log.Printf("SetServerProxyError serverID=%s error: %v", cfg.ServerID, dbErr)
+			telemetry.Printf("SetServerProxyError serverID=%s error: %v", cfg.ServerID, dbErr)
 		}
 		failDeploy(cfg.DeploymentID, "Rolling proxy is not ready; upgrade it from the Servers page: "+err.Error())
 		return false
@@ -490,7 +503,7 @@ func runRollingDeploy(ctx context.Context, client *ssh.Client, docker string, cf
 	}
 
 	appendLog(ctx, cfg.DeploymentID, "waiting for candidate healthcheck...", "stdout", "health_check")
-	if err := waitForHealthy(ctx, client, docker, candidateName); err != nil {
+	if err := waitForHealthy(ctx, client, candidateName); err != nil {
 		_ = stopAndRemoveContainer(ctx, client, cfg.DeploymentID, candidateName)
 		failDeploy(cfg.DeploymentID, "Candidate did not become healthy: "+err.Error())
 		return false
@@ -519,7 +532,7 @@ func runRollingDeploy(ctx context.Context, client *ssh.Client, docker string, cf
 	}
 
 	appendLog(ctx, cfg.DeploymentID, "draining previous container for 30 seconds...", "stdout", "drain")
-	if err := monitorHealthy(ctx, client, docker, candidateName, drainPeriod); err != nil {
+	if err := monitorHealthy(ctx, client, candidateName, drainPeriod); err != nil {
 		if restoreErr := restorePreviousRoute(ctx, client, cfg.ServiceID, oldConfig, oldContainer, true); restoreErr != nil {
 			failDeploy(cfg.DeploymentID, "Candidate failed during drain and rollback could not be confirmed; both containers left running: "+errors.Join(err, restoreErr).Error())
 			return false
@@ -600,13 +613,9 @@ func fallbackHealthcheckCommand(port int) string {
 	return fmt.Sprintf("curl -fsS http://127.0.0.1:%d/ >/dev/null || wget -q -O /dev/null http://127.0.0.1:%d/ || exit 1", port, port)
 }
 
-func containerHealth(ctx context.Context, client *ssh.Client, docker, containerName string) (string, error) {
-	return client.Run(ctx, fmt.Sprintf("%s inspect --format '{{.State.Health.Status}}' %s", docker, containerName))
-}
-
-func waitForHealthy(ctx context.Context, client *ssh.Client, docker, containerName string) error {
+func waitForHealthy(ctx context.Context, client *ssh.Client, containerName string) error {
 	for {
-		status, err := containerHealth(ctx, client, docker, containerName)
+		status, err := dockerapi.ContainerHealth(ctx, client, containerName)
 		if err != nil {
 			return err
 		}
@@ -624,7 +633,7 @@ func waitForHealthy(ctx context.Context, client *ssh.Client, docker, containerNa
 	}
 }
 
-func monitorHealthy(ctx context.Context, client *ssh.Client, docker, containerName string, duration time.Duration) error {
+func monitorHealthy(ctx context.Context, client *ssh.Client, containerName string, duration time.Duration) error {
 	deadline := time.NewTimer(duration)
 	defer deadline.Stop()
 	for {
@@ -634,7 +643,7 @@ func monitorHealthy(ctx context.Context, client *ssh.Client, docker, containerNa
 		case <-deadline.C:
 			return nil
 		case <-time.After(healthPollInterval):
-			status, err := containerHealth(ctx, client, docker, containerName)
+			status, err := dockerapi.ContainerHealth(ctx, client, containerName)
 			if err != nil {
 				return err
 			}
@@ -651,11 +660,11 @@ func reconcileDomainCertificates(ctx context.Context, client *ssh.Client, cfg De
 	}
 
 	if err := db.SetServerProxyReady(ctx, cfg.ServerID, "ready"); err != nil {
-		log.Printf("SetServerProxyReady error: %v", err)
+		telemetry.Printf("SetServerProxyReady error: %v", err)
 	}
 	domainList, err := db.ListDomainsByService(ctx, cfg.ServiceID)
 	if err != nil {
-		log.Printf("ListDomainsByService error: %v", err)
+		telemetry.Printf("ListDomainsByService error: %v", err)
 		return
 	}
 	unresolvedDomains := make(map[string]string)
@@ -694,6 +703,8 @@ func buildDockerRunCmd(docker string, cfg DeployConfig) string {
 	}
 	if cfg.DeploymentID != "" {
 		args += fmt.Sprintf(" --label stagezero.deployment_id=%s", cfg.DeploymentID)
+		// The published monitoring image still reads the pre-rebrand label.
+		args += fmt.Sprintf(" --label uploy.deployment_id=%s", cfg.DeploymentID)
 	}
 
 	if len(cfg.Domains) > 0 {

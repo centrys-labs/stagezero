@@ -5,6 +5,48 @@ info:
   description: StageZero deployment platform API
 
 paths:
+  /healthz:
+    get:
+      operationId: healthz
+      summary: Check whether the API process is alive
+      responses:
+        "200":
+          description: API process is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /readyz:
+    get:
+      operationId: readyz
+      summary: Check whether the API is ready to serve traffic
+      responses:
+        "200":
+          description: API and database are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: API dependencies are unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+
+  /metrics:
+    get:
+      operationId: metrics
+      summary: Export internal API metrics
+      responses:
+        "200":
+          description: Prometheus/OpenMetrics text exposition
+          content:
+            text/plain:
+              schema:
+                type: string
+
   /api/auth/register:
     post:
       operationId: register
@@ -493,6 +535,669 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "502":
           description: The server could not be reached, or has no usable Docker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/servers/{id}/monitoring:
+    post:
+      operationId: configureServerMonitoring
+      summary: Enable or update retained container metrics on a server
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigureServerMonitoringRequest"
+      responses:
+        "200":
+          description: Monitoring agent provisioned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerResponse"
+        "400":
+          description: Invalid monitoring configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Monitoring FQDN is already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Monitoring agent could not be provisioned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: disableServerMonitoring
+      summary: Disable retained metrics while retaining local history for seven days
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Monitoring agent removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Monitoring agent could not be removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/servers/{id}/metrics:
+    get:
+      operationId: getServerMetrics
+      summary: Get current server health metrics
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current server health metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerMetricsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Monitoring is not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Monitoring agent could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/servers/{id}/metrics/history:
+    get:
+      operationId: getServerMetricsHistory
+      summary: Get retained server health metrics
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d]
+            default: 7d
+        - name: max_points
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 300
+      responses:
+        "200":
+          description: Retained server health metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerMetricsHistoryResponse"
+        "400":
+          description: Invalid history parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Monitoring is not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Monitoring agent could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/servers/{id}/monitoring/credentials:
+    get:
+      operationId: getServerMonitoringCredentials
+      summary: Read the scrape credentials an external collector needs
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scrape credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerMonitoringCredentialsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Monitoring has never been configured on this server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/servers/{id}/monitoring/reader-token:
+    post:
+      operationId: rotateServerMonitoringReaderToken
+      summary: Replace the read token and restart the agent with it
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Scrape credentials, holding the replacement token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerMonitoringCredentialsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Monitoring is not enabled on this server
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: The agent could not be restarted with the new token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/servers/{id}/monitoring/history:
+    delete:
+      operationId: deleteServerMonitoringHistory
+      summary: Permanently delete retained monitoring history
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: History deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Server not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Monitoring history could not be deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/notification-channels:
+    get:
+      operationId: listNotificationChannels
+      summary: List notification channels
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Notification channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationChannelResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createNotificationChannel
+      summary: Create a notification channel
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationChannelRequest"
+      responses:
+        "201":
+          description: Notification channel created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationChannelResponse"
+        "400":
+          description: Invalid channel configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/notification-channels/{id}:
+    put:
+      operationId: updateNotificationChannel
+      summary: Update a notification channel
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNotificationChannelRequest"
+      responses:
+        "200":
+          description: Notification channel updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationChannelResponse"
+        "400":
+          description: Invalid channel configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Channel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteNotificationChannel
+      summary: Delete a notification channel
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Notification channel deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Channel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/notification-channels/{id}/test:
+    post:
+      operationId: testNotificationChannel
+      summary: Send a test notification
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Test notification sent
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Channel not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Notification provider rejected the test
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/alert-rules:
+    get:
+      operationId: listAlertRules
+      summary: List alert rules
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Alert rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlertRuleResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAlertRule
+      summary: Create an alert rule
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertRuleRequest"
+      responses:
+        "201":
+          description: Alert rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRuleResponse"
+        "400":
+          description: Invalid alert rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/alert-rules/{id}:
+    put:
+      operationId: updateAlertRule
+      summary: Update an alert rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertRuleRequest"
+      responses:
+        "200":
+          description: Alert rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRuleResponse"
+        "400":
+          description: Invalid alert rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Alert rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAlertRule
+      summary: Delete an alert rule
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Alert rule deleted
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Alert rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/alerts/history:
+    get:
+      operationId: listAlertHistory
+      summary: List alert incidents
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Alert incidents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AlertEventResponse"
+        "401":
+          description: Not authenticated
           content:
             application/json:
               schema:
@@ -1048,6 +1753,97 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "500":
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{id}/metrics:
+    get:
+      operationId: getProjectMetrics
+      summary: Get current project container metrics
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current metrics for active project deployments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectMetricsResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/projects/{id}/metrics/history:
+    get:
+      operationId: getProjectMetricsHistory
+      summary: Get retained metrics grouped by service deployment
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [1h, 6h, 24h, 7d, 30d]
+            default: 7d
+        - name: max_points
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 300
+      responses:
+        "200":
+          description: Retained samples per deployment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectMetricsHistoryResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: A monitoring agent could not be reached
           content:
             application/json:
               schema:
@@ -1944,6 +2740,245 @@ components:
       name: session
 
   schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    ReadinessResponse:
+      type: object
+      required:
+        - status
+        - database
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        database:
+          type: string
+          enum: [ok, unavailable]
+
+    NotificationChannelConfig:
+      type: object
+      additionalProperties: true
+
+    NotificationChannelType:
+      type: string
+      enum:
+        - discord
+        - slack
+        - telegram
+        - email
+        - webhook
+
+    CreateNotificationChannelRequest:
+      type: object
+      required:
+        - name
+        - type
+        - config
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        type:
+          $ref: "#/components/schemas/NotificationChannelType"
+        config:
+          $ref: "#/components/schemas/NotificationChannelConfig"
+
+    UpdateNotificationChannelRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateNotificationChannelRequest"
+        - type: object
+          properties:
+            enabled:
+              type: boolean
+      description: >-
+        Omitted credential fields retain their stored values when the type is unchanged.
+        A nonempty string replaces a credential; null removes an optional credential.
+        Required credentials cannot be removed. Changing type requires new credentials.
+
+    NotificationChannelResponse:
+      type: object
+      required:
+        - id
+        - name
+        - type
+        - enabled
+        - config
+        - configured_credentials
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/NotificationChannelType"
+        enabled:
+          type: boolean
+        config:
+          $ref: "#/components/schemas/NotificationChannelConfig"
+          description: Only explicitly allowlisted non-secret fields; credentials are never returned.
+        configured_credentials:
+          type: array
+          description: Names of configured credentials, never their values.
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AlertCondition:
+      type: string
+      enum:
+        - cpu_high
+        - memory_high
+        - disk_low
+        - service_down
+        - server_unreachable
+
+    AlertScopeType:
+      type: string
+      enum:
+        - server
+        - service
+
+    CreateAlertRuleRequest:
+      type: object
+      required:
+        - name
+        - condition
+        - threshold
+        - duration_seconds
+        - scope_type
+        - channel_ids
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        condition:
+          $ref: "#/components/schemas/AlertCondition"
+        threshold:
+          type: number
+          format: double
+          minimum: 0
+        duration_seconds:
+          type: integer
+          minimum: 60
+          maximum: 2592000
+        scope_type:
+          $ref: "#/components/schemas/AlertScopeType"
+        server_id:
+          type: string
+        service_id:
+          type: string
+        channel_ids:
+          type: array
+          items:
+            type: string
+
+    UpdateAlertRuleRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateAlertRuleRequest"
+        - type: object
+          properties:
+            enabled:
+              type: boolean
+
+    AlertRuleResponse:
+      type: object
+      required:
+        - id
+        - name
+        - condition
+        - threshold
+        - duration_seconds
+        - scope_type
+        - channel_ids
+        - enabled
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        condition:
+          $ref: "#/components/schemas/AlertCondition"
+        threshold:
+          type: number
+          format: double
+        duration_seconds:
+          type: integer
+        scope_type:
+          $ref: "#/components/schemas/AlertScopeType"
+        server_id:
+          type: string
+        service_id:
+          type: string
+        channel_ids:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AlertEventResponse:
+      type: object
+      required:
+        - id
+        - rule_id
+        - target_id
+        - target_name
+        - status
+        - started_at
+        - trigger_value
+      properties:
+        id:
+          type: string
+        rule_id:
+          type: string
+        target_id:
+          type: string
+        target_name:
+          type: string
+        status:
+          type: string
+          enum:
+            - firing
+            - resolved
+        started_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+        trigger_value:
+          type: number
+          format: double
+        resolved_value:
+          type: number
+          format: double
+        duration_seconds:
+          type: integer
+
     LoginRequest:
       type: object
       required:
@@ -2217,6 +3252,7 @@ components:
         - ssh_user
         - ssh_key_id
         - proxy_status
+        - monitoring
         - created_at
       properties:
         id:
@@ -2243,9 +3279,158 @@ components:
           format: date-time
         proxy_last_error:
           type: string
+        monitoring:
+          $ref: "#/components/schemas/ServerMonitoringResponse"
         created_at:
           type: string
           format: date-time
+
+    ConfigureServerMonitoringRequest:
+      type: object
+      properties:
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          default: 9184
+          description: Loopback port the agent is published on. StageZero reaches it by tunneling through the server's SSH connection, so nothing outside the machine can.
+        retention_days:
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 7
+        fqdn:
+          type: string
+          description: Optional public FQDN. StageZero routes it through Traefik with HTTPS.
+        reader_token:
+          type: string
+          format: password
+          minLength: 32
+          description: Read token for external scrapers. Omit it — StageZero generates one on first setup and keeps the existing one afterwards.
+
+    ServerMonitoringCredentialsResponse:
+      type: object
+      required:
+        - reader_token
+      properties:
+        reader_token:
+          type: string
+          description: Read-only token for `/metrics` and the JSON read endpoints.
+        metrics_url:
+          type: string
+          description: Public scrape URL. Present only when the server has a monitoring FQDN.
+
+    ServerMonitoringResponse:
+      type: object
+      required:
+        - enabled
+        - port
+        - retention_days
+        - status
+      properties:
+        enabled:
+          type: boolean
+        port:
+          type: integer
+        retention_days:
+          type: integer
+        fqdn:
+          type: string
+        status:
+          type: string
+          enum: [disabled, provisioning, ready, error]
+        last_reconciled_at:
+          type: string
+          format: date-time
+        last_error:
+          type: string
+        cleanup_at:
+          type: string
+          format: date-time
+
+    ServerMetricsResponse:
+      type: object
+      required:
+        - sampled_at
+        - disk_used_bytes
+        - disk_total_bytes
+        - disk_used_percent
+        - disk_read_bytes_total
+        - disk_write_bytes_total
+        - load_1
+        - load_5
+        - load_15
+        - swap_used_bytes
+        - swap_total_bytes
+        - partitions
+      properties:
+        sampled_at:
+          type: string
+          format: date-time
+        disk_used_bytes:
+          type: integer
+          format: int64
+        disk_total_bytes:
+          type: integer
+          format: int64
+        disk_used_percent:
+          type: number
+          format: double
+        disk_read_bytes_total:
+          type: integer
+          format: int64
+        disk_write_bytes_total:
+          type: integer
+          format: int64
+        load_1:
+          type: number
+          format: double
+        load_5:
+          type: number
+          format: double
+        load_15:
+          type: number
+          format: double
+        swap_used_bytes:
+          type: integer
+          format: int64
+        swap_total_bytes:
+          type: integer
+          format: int64
+        partitions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServerDiskPartition"
+
+    ServerDiskPartition:
+      type: object
+      required:
+        - mountpoint
+        - used_bytes
+        - total_bytes
+        - used_percent
+      properties:
+        mountpoint:
+          type: string
+        used_bytes:
+          type: integer
+          format: int64
+        total_bytes:
+          type: integer
+          format: int64
+        used_percent:
+          type: number
+          format: double
+
+    ServerMetricsHistoryResponse:
+      type: object
+      required:
+        - points
+      properties:
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServerMetricsResponse"
 
     LogEntry:
       type: object
@@ -2629,6 +3814,282 @@ components:
           type: string
         detected:
           $ref: "#/components/schemas/SourceDetection"
+
+    ProjectMetricsResponse:
+      type: object
+      required:
+        - sampled_at
+        - refresh_after_seconds
+        - summary
+        - services
+        - unmonitored_servers
+      properties:
+        sampled_at:
+          type: string
+          format: date-time
+        refresh_after_seconds:
+          type: integer
+          description: Recommended client refresh interval.
+        summary:
+          $ref: "#/components/schemas/ProjectMetricsSummary"
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceMetrics"
+        unmonitored_servers:
+          type: array
+          description: >-
+            Servers that host an active deployment in this project but run no monitoring
+            agent, deduplicated and sorted by name so a client can render one call to
+            action per server rather than one per affected service.
+          items:
+            $ref: "#/components/schemas/UnmonitoredServer"
+
+    UnmonitoredServer:
+      type: object
+      required:
+        - id
+        - name
+        - service_count
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        service_count:
+          type: integer
+          description: Services in this project whose active deployment runs on this server.
+
+    ProjectMetricsHistoryResponse:
+      type: object
+      required:
+        - services
+        - deployment_markers
+      properties:
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceMetricsHistory"
+        deployment_markers:
+          type: array
+          description: Deployments created within the requested history window, including failed attempts.
+          items:
+            $ref: "#/components/schemas/DeploymentMarker"
+
+    DeploymentMarker:
+      type: object
+      required:
+        - deployment_id
+        - service_id
+        - service_name
+        - at
+        - status
+        - duration_seconds
+        - image
+        - commit
+      properties:
+        deployment_id:
+          type: string
+        service_id:
+          type: string
+        service_name:
+          type: string
+        at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [in_progress, success, failed]
+        duration_seconds:
+          type: integer
+          minimum: 0
+        image:
+          type: string
+          description: Image deployed by this run; used when source-control metadata is unavailable.
+        commit:
+          type: string
+          description: Commit-like image tag or digest when the image reference encodes one; empty otherwise.
+
+    ServiceMetricsHistory:
+      type: object
+      required:
+        - service_id
+        - name
+        - deployments
+      properties:
+        service_id:
+          type: string
+        name:
+          type: string
+        deployments:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeploymentMetricsHistory"
+
+    DeploymentMetricsHistory:
+      type: object
+      required:
+        - deployment_id
+        - points
+      properties:
+        deployment_id:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContainerMetricsSample"
+
+    ContainerMetricsSample:
+      type: object
+      required:
+        - sampled_at
+        - container_id
+        - container_name
+        - state
+        - cpu_percent
+        - memory_used_bytes
+        - memory_limit_bytes
+        - network_in_bytes_total
+        - network_out_bytes_total
+        - uptime_seconds
+      properties:
+        sampled_at:
+          type: string
+          format: date-time
+        container_id:
+          type: string
+        container_name:
+          type: string
+        state:
+          type: string
+        cpu_percent:
+          type: number
+          format: double
+        memory_used_bytes:
+          type: integer
+          format: int64
+        memory_limit_bytes:
+          type: integer
+          format: int64
+        network_in_bytes_total:
+          type: integer
+          format: int64
+        network_out_bytes_total:
+          type: integer
+          format: int64
+        uptime_seconds:
+          type: integer
+          format: int64
+
+    ProjectMetricsSummary:
+      type: object
+      required:
+        - total_services
+        - running_services
+        - degraded_services
+        - cpu_percent
+        - memory_used_bytes
+        - memory_limit_bytes
+        - network_in_bytes_total
+        - network_out_bytes_total
+      properties:
+        total_services:
+          type: integer
+        running_services:
+          type: integer
+        degraded_services:
+          type: integer
+        cpu_percent:
+          type: number
+          format: double
+        memory_used_bytes:
+          type: integer
+          format: int64
+        memory_limit_bytes:
+          type: integer
+          format: int64
+        network_in_bytes_total:
+          type: integer
+          format: int64
+        network_out_bytes_total:
+          type: integer
+          format: int64
+
+    ServiceMetrics:
+      type: object
+      required:
+        - service_id
+        - name
+        - environment_name
+        - status
+      properties:
+        service_id:
+          type: string
+        name:
+          type: string
+        environment_name:
+          type: string
+        status:
+          type: string
+          description: >-
+            monitoring_disabled means the deployment server runs no monitoring agent, so
+            StageZero has no metrics for it. It is a setup state, not a failure.
+          enum:
+            - not_deployed
+            - running
+            - stopped
+            - unreachable
+            - error
+            - monitoring_disabled
+        deployment_id:
+          type: string
+        server_id:
+          type: string
+          description: Server running the active deployment; absent when nothing is deployed.
+        server_name:
+          type: string
+        error:
+          type: string
+        container:
+          $ref: "#/components/schemas/ContainerMetrics"
+
+    ContainerMetrics:
+      type: object
+      required:
+        - id
+        - name
+        - state
+        - cpu_percent
+        - memory_used_bytes
+        - memory_limit_bytes
+        - network_in_bytes_total
+        - network_out_bytes_total
+        - uptime_seconds
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        state:
+          type: string
+        cpu_percent:
+          type: number
+          format: double
+        memory_used_bytes:
+          type: integer
+          format: int64
+        memory_limit_bytes:
+          type: integer
+          format: int64
+        network_in_bytes_total:
+          type: integer
+          format: int64
+        network_out_bytes_total:
+          type: integer
+          format: int64
+        uptime_seconds:
+          type: integer
+          format: int64
 
     ConfigChange:
       type: object

@@ -3,7 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/centrys-labs/stagezero/telemetry"
 	"time"
 
 	"github.com/centrys-labs/stagezero/crypto"
@@ -19,7 +19,7 @@ import (
 func decryptEnvValue(serviceID, key, stored string) string {
 	plaintext, err := crypto.Decrypt(stored)
 	if err != nil {
-		log.Printf("env var service=%s key=%s: reading as legacy plaintext: %v", serviceID, key, err)
+		telemetry.Printf("env var service=%s key=%s: reading as legacy plaintext: %v", serviceID, key, err)
 		return stored
 	}
 	return plaintext

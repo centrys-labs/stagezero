@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sort"
 	"sync"
 	"time"
 
 	"github.com/centrys-labs/stagezero/crypto"
 	"github.com/centrys-labs/stagezero/source"
+	"github.com/centrys-labs/stagezero/telemetry"
 )
 
 // configSchemaVersion rides along in every snapshot so a stored one can still be
@@ -174,7 +174,7 @@ func DeployedConfigs(ctx context.Context, serviceIDs []string) (map[string]Servi
 			// A snapshot that cannot be read is the same as not having one: the
 			// service reads as pending, which is the safe direction. Skipping it
 			// beats failing the whole request over one unreadable row.
-			log.Printf("deployed config for service %s is unreadable: %v", r.ServiceID, err)
+			telemetry.Printf("deployed config for service %s is unreadable: %v", r.ServiceID, err)
 			continue
 		}
 		deployed[r.ServiceID] = cfg
@@ -448,7 +448,7 @@ func sourceAwareConfigs(ctx context.Context, svcs []Service, sources map[string]
 	close(results)
 	for result := range results {
 		if result.err != nil {
-			log.Printf("resolve source %s for diff: %v", result.serviceID, result.err)
+			telemetry.Printf("resolve source %s for diff: %v", result.serviceID, result.err)
 			continue
 		}
 		cfg := configs[result.serviceID]

@@ -39,7 +39,17 @@ WITH service_deployments AS (
                  AND l.phase <> 'recovery_pending'
                ORDER BY l."order" DESC
                LIMIT 1
-           ), '') AS phase
+           ), '') AS phase,
+           COALESCE((
+               SELECT MIN(l.created_at)
+               FROM deployment_logs l
+               WHERE l.deployment_id = d.id
+           ), d.created_at) AS started_at,
+           COALESCE((
+               SELECT MAX(l.created_at)::timestamptz
+               FROM deployment_logs l
+               WHERE l.deployment_id = d.id
+           ), d.created_at) AS completed_at
     FROM deployments d
     WHERE d.service_id = $1
 ), current_deployment AS (
@@ -62,6 +72,8 @@ SELECT d.id,
        d.created_at,
        d.configuration_snapshot,
        d.phase::text AS phase,
+       d.started_at,
+       d.completed_at,
        COALESCE((CASE
            WHEN current_deployment.status = 'in_progress' AND current_deployment.phase IN ('active', 'drain')
                THEN d.id = current_deployment.id
@@ -77,18 +89,47 @@ FROM service_deployments d
 LEFT JOIN current_deployment ON true
 LEFT JOIN latest_success ON true
 )
-SELECT id, status, workspace_id, service_id, created_at, configuration_snapshot, phase, is_active, is_draining
+SELECT id, status, workspace_id, service_id, created_at, configuration_snapshot, phase, started_at, completed_at, is_active, is_draining
 FROM marked
 WHERE id IN (SELECT id FROM marked ORDER BY created_at DESC LIMIT $2)
    OR is_active
    OR is_draining
 ORDER BY created_at DESC;
 
+-- name: ListDeploymentsByServiceInWindow :many
+-- Include attempts created inside the window as markers, and earlier successful
+-- deployments that could have samples inside it. Failed attempts do not replace
+-- the last successful container.
+WITH service_deployments AS (
+    SELECT d.id, d.status, d.workspace_id, d.service_id, d.created_at,
+           COALESCE((SELECT MIN(l.created_at) FROM deployment_logs l WHERE l.deployment_id = d.id), d.created_at) AS started_at,
+           COALESCE((SELECT MAX(l.created_at)::timestamptz FROM deployment_logs l WHERE l.deployment_id = d.id), d.created_at) AS completed_at
+    FROM deployments d
+    WHERE d.service_id = $1
+), successful AS (
+    SELECT id, started_at,
+           LEAD(started_at) OVER (ORDER BY created_at ASC, id ASC) AS superseded_at
+    FROM service_deployments
+    WHERE status = 'success'
+)
+SELECT d.id, d.status::text AS status, d.workspace_id, d.service_id, d.created_at, d.started_at, d.completed_at
+FROM service_deployments d
+LEFT JOIN successful s ON s.id = d.id
+WHERE d.created_at BETWEEN @window_start::timestamptz AND @window_end::timestamptz
+   OR (s.id IS NOT NULL AND s.started_at <= @window_end::timestamptz
+       AND (s.superseded_at IS NULL OR s.superseded_at >= @window_start::timestamptz))
+ORDER BY d.created_at ASC, d.id ASC;
+
 -- name: ListInProgressDeploymentIDs :many
 SELECT id
 FROM deployments
 WHERE status = 'in_progress'
 ORDER BY created_at ASC;
+
+-- name: ServiceHasInProgressDeployment :one
+SELECT EXISTS (
+    SELECT 1 FROM deployments WHERE service_id = $1 AND status = 'in_progress'
+);
 
 -- name: GetLatestDeploymentPhase :one
 SELECT COALESCE((

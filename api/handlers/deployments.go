@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/centrys-labs/stagezero/respond"
 	"github.com/centrys-labs/stagezero/source"
 	"github.com/centrys-labs/stagezero/ssh"
+	"github.com/centrys-labs/stagezero/telemetry"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -40,7 +40,7 @@ func (s *Server) CreateDeployment(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, pgx.ErrNoRows) {
 			respond.JSON(w, http.StatusNotFound, gen.ErrorResponse{Error: "service not found"})
 		} else {
-			log.Printf("GetServiceWithServer id=%s error: %v", req.ServiceId, err)
+			telemetry.Printf("GetServiceWithServer id=%s error: %v", req.ServiceId, err)
 			respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to look up service"})
 		}
 		return
@@ -59,7 +59,7 @@ func (s *Server) CreateDeployment(w http.ResponseWriter, r *http.Request) {
 	// environment values that the resulting container will receive at runtime.
 	cfg, err := db.ServiceConfigOf(r.Context(), svcWithServer.Service)
 	if err != nil {
-		log.Printf("ServiceConfigOf id=%s error: %v", svcWithServer.ID, err)
+		telemetry.Printf("ServiceConfigOf id=%s error: %v", svcWithServer.ID, err)
 		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to load service configuration"})
 		return
 	}
@@ -87,7 +87,7 @@ func (s *Server) CreateDeployment(w http.ResponseWriter, r *http.Request) {
 			SecretsHash: jobs.SecretsHash(cfg.EnvVars),
 		}
 	} else if !errors.Is(sourceErr, pgx.ErrNoRows) {
-		log.Printf("GetServiceSource id=%s error: %v", svcWithServer.ID, sourceErr)
+		telemetry.Printf("GetServiceSource id=%s error: %v", svcWithServer.ID, sourceErr)
 		respond.JSON(w, http.StatusInternalServerError, gen.ErrorResponse{Error: "failed to inspect service source"})
 		return
 	}
