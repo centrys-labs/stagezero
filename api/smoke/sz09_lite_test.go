@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -30,6 +31,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -39,7 +41,19 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-const apiBaseURL = "http://127.0.0.1:8080"
+const (
+	apiBaseURL = "http://127.0.0.1:8080"
+
+	// buildTimeout bounds the BuildKit build. The workflow job allows 45
+	// minutes in total and the other checks need a few minutes of it.
+	buildTimeout = 25 * time.Minute
+
+	// buildDiskBudget is the free disk the BuildKit build needs. It is twice
+	// the measured peak: the buildkit image (365 MB), the railpack frontend
+	// (46 MB), the railpack builder image (1.6 GB), the node runtime, the
+	// npm cache and the exported image layers add up to about 4.5 GB.
+	buildDiskBudget = 9 << 30
+)
 
 type analyzeRequest struct {
 	RepoURL         string  `json:"repo_url"`
@@ -135,13 +149,23 @@ func TestSZ09Lite(t *testing.T) {
 		t.Fatalf("create api temporary directory: %v", err)
 	}
 
+	conn, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { conn.Close() })
+
+	// The tenant is seeded before the API starts so that its session token is
+	// known before the log redactor is built.
+	tn := seedTenant(t, conn)
+
 	encryptionKey := randomHex(32)
 	logPath := filepath.Join(diagDir, "api.log")
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		t.Fatalf("create api log: %v", err)
 	}
-	redactor := &redactingWriter{w: logFile, secrets: []string{dsn, databasePassword(dsn), encryptionKey}}
+	redactor := newRedactingWriter(logFile, dsn, databasePassword(dsn), encryptionKey, tn.token)
 	cmd := exec.Command(apiBin)
 	cmd.Dir = apiDir
 	cmd.Env = append(os.Environ(),
@@ -164,6 +188,7 @@ func TestSZ09Lite(t *testing.T) {
 	t.Cleanup(func() {
 		_ = cmd.Process.Signal(os.Interrupt)
 		_ = cmd.Wait()
+		_ = redactor.Flush()
 		_ = logFile.Close()
 		if t.Failed() {
 			if content, err := os.ReadFile(logPath); err == nil {
@@ -172,17 +197,8 @@ func TestSZ09Lite(t *testing.T) {
 		}
 	})
 
-	client := newClient(t, "")
+	client := newClient(t, tn.token)
 	waitReady(t, client)
-
-	conn, err := sql.Open("pgx", dsn)
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	t.Cleanup(func() { conn.Close() })
-
-	tn := seedTenant(t, conn)
-	client = newClient(t, tn.token)
 
 	var sha string
 	t.Run("source-analysis", func(t *testing.T) {
@@ -360,35 +376,66 @@ func TestSZ09Lite(t *testing.T) {
 	})
 
 	t.Run("cancellation-and-cleanup", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		// The analysis has to be interrupted while it runs, not before it
+		// starts, so the request is cancelled as soon as the server is
+		// observably working on it: the temporary source tree exists while
+		// the tarball is fetched and prepared.
+		waitFor(t, 20*time.Second, func() bool { return !sourceTreeExists(apiTmp) },
+			"a previous analysis left a temporary source tree behind")
+
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiBaseURL+"/api/source/analyze", bytes.NewReader([]byte(`{"repo_url":"`+repoURL+`"}`)))
 		if err != nil {
 			t.Fatalf("build cancel request: %v", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		resp, err := client.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			t.Fatal("cancelled request returned a response; the analysis was not interrupted")
-		}
-
-		waitFor(t, 20*time.Second, func() bool {
-			entries, err := os.ReadDir(apiTmp)
-			if err != nil {
-				return false
+		done := make(chan error, 1)
+		go func() {
+			resp, err := client.Do(req)
+			if resp != nil {
+				resp.Body.Close()
 			}
-			for _, entry := range entries {
-				if strings.HasPrefix(entry.Name(), "stagezero-source-") {
-					return false
+			done <- err
+		}()
+
+		interrupted := false
+		deadline := time.Now().Add(60 * time.Second)
+	wait:
+		for {
+			select {
+			case err := <-done:
+				t.Logf("the analysis finished before it could be interrupted: %v", err)
+				break wait
+			case <-time.After(20 * time.Millisecond):
+				if sourceTreeExists(apiTmp) {
+					cancel()
+					select {
+					case err := <-done:
+						if err == nil {
+							t.Error("the cancelled request returned a response; the analysis was not interrupted")
+						}
+					case <-time.After(30 * time.Second):
+						t.Fatal("the cancelled request never returned")
+					}
+					interrupted = true
+					break wait
 				}
 			}
-			return true
-		}, "the cancelled analysis left a temporary source tree behind")
+			if time.Now().After(deadline) {
+				t.Fatal("the analysis never reached the fetch stage")
+			}
+		}
+		if !interrupted {
+			t.Log("the cancellation could not be observed; the cleanup and slot checks still run")
+		}
+
+		waitFor(t, 20*time.Second, func() bool { return !sourceTreeExists(apiTmp) },
+			"the cancelled analysis left a temporary source tree behind")
 
 		// A leaked analysis slot would keep answering 429 here. The cancelled
 		// request needs a moment to unwind, so the check waits for it.
-		deadline := time.Now().Add(30 * time.Second)
+		deadline = time.Now().Add(30 * time.Second)
 		for {
 			status, raw := doJSON(t, client, http.MethodPost, "/api/source/analyze", analyzeRequest{RepoURL: repoURL, Branch: &branch})
 			if status == http.StatusOK {
@@ -419,8 +466,13 @@ func TestSZ09Lite(t *testing.T) {
 // proves the build frontend accepts the plan; it does not deploy anything and
 // it does not exercise the deployment path that runs on a target host.
 func buildFixture(t *testing.T, apiDir, owner, name, sha string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
 	defer cancel()
+
+	if free := freeDiskBytes("/"); free < buildDiskBudget {
+		t.Fatalf("the BuildKit build needs %.1f GB of free disk, only %.1f GB are free; run the smoke test without SZ09_LITE_BUILD or on a runner with more disk",
+			float64(buildDiskBudget)/(1<<30), float64(free)/(1<<30))
+	}
 
 	frontend := frontendImage(t, apiDir)
 
@@ -447,7 +499,8 @@ func buildFixture(t *testing.T, apiDir, owner, name, sha string) {
 		t.Fatalf("write railpack plan: %v", err)
 	}
 	image := "stagezero/sz09-lite:" + sha
-	out, err := run("", "docker", []string{
+	t.Cleanup(func() { _, _ = run("", "docker", []string{"rmi", "-f", image}) })
+	out, err := runContext(ctx, "", "docker", []string{
 		"buildx", "build",
 		"--build-arg", "BUILDKIT_SYNTAX=" + frontend,
 		"-f", planFile,
@@ -456,9 +509,11 @@ func buildFixture(t *testing.T, apiDir, owner, name, sha string) {
 		dir,
 	})
 	if err != nil {
+		if ctx.Err() != nil {
+			t.Fatalf("the BuildKit build did not finish within %s and was stopped: %v\n%s", buildTimeout, err, out)
+		}
 		t.Fatalf("buildx build with the pinned frontend %s failed: %v\n%s", frontend, err, out)
 	}
-	t.Cleanup(func() { _, _ = run("", "docker", []string{"rmi", "-f", image}) })
 	if out, err := run("", "docker", []string{"image", "inspect", image}); err != nil {
 		t.Fatalf("built image is missing: %v\n%s", err, out)
 	}
@@ -671,6 +726,54 @@ func run(dir, name string, args []string, env ...string) (string, error) {
 	return string(out), err
 }
 
+// runContext runs a command that has to stop when the context is done. The
+// whole process group is killed, so a cancelled build leaves no helper behind,
+// and the BuildKit daemon cancels the solve when its client disappears.
+func runContext(ctx context.Context, dir, name string, args []string, env ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		if errors.Is(err, syscall.ESRCH) {
+			return nil
+		}
+		return err
+	}
+	cmd.WaitDelay = 5 * time.Second
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// sourceTreeExists reports whether the API still holds a fetched source tree.
+func sourceTreeExists(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "stagezero-source-") {
+			return true
+		}
+	}
+	return false
+}
+
+// freeDiskBytes reports the free space of the filesystem that holds the path.
+func freeDiskBytes(path string) uint64 {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0
+	}
+	return stat.Bavail * uint64(stat.Bsize)
+}
+
 func waitFor(t *testing.T, timeout time.Duration, condition func() bool, message string) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -700,19 +803,106 @@ func databasePassword(dsn string) string {
 	return password
 }
 
-// redactingWriter keeps disposable credentials out of the uploaded log.
+// redactingWriter keeps disposable credentials out of the uploaded log. It
+// holds back the tail of the stream, because a secret can be split across two
+// writes and would then survive a replacement that runs per write.
 type redactingWriter struct {
 	w       io.Writer
 	secrets []string
+	pending []byte
+	keep    int
+}
+
+func newRedactingWriter(w io.Writer, secrets ...string) *redactingWriter {
+	keep := 0
+	for _, secret := range secrets {
+		if len(secret) > keep {
+			keep = len(secret)
+		}
+	}
+	return &redactingWriter{w: w, secrets: secrets, keep: keep}
 }
 
 func (r *redactingWriter) Write(p []byte) (int, error) {
-	text := string(p)
+	r.pending = append(r.pending, p...)
+	text := r.redact(string(r.pending))
+	if len(text) <= r.keep {
+		r.pending = []byte(text)
+		return len(p), nil
+	}
+	out := text[:len(text)-r.keep]
+	r.pending = []byte(text[len(text)-r.keep:])
+	if _, err := r.w.Write([]byte(out)); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// Flush writes the held back tail of the stream.
+func (r *redactingWriter) Flush() error {
+	if len(r.pending) == 0 {
+		return nil
+	}
+	text := r.redact(string(r.pending))
+	r.pending = nil
+	_, err := r.w.Write([]byte(text))
+	return err
+}
+
+func (r *redactingWriter) redact(text string) string {
 	for _, secret := range r.secrets {
 		if secret == "" {
 			continue
 		}
 		text = strings.ReplaceAll(text, secret, "[redacted]")
 	}
-	return r.w.Write([]byte(text))
+	return text
+}
+
+// TestRedactingWriter proves that a secret split across two writes is still
+// redacted, so the uploaded log cannot leak the disposable session token.
+func TestRedactingWriter(t *testing.T) {
+	var buffer bytes.Buffer
+	redactor := newRedactingWriter(&buffer, "session-token-value")
+	if _, err := redactor.Write([]byte("cookie=session-")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, err := redactor.Write([]byte("token-value done\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := redactor.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	if strings.Contains(buffer.String(), "session-token-value") {
+		t.Fatalf("the log kept the secret: %q", buffer.String())
+	}
+	if !strings.Contains(buffer.String(), "[redacted]") {
+		t.Fatalf("the log does not show the redaction: %q", buffer.String())
+	}
+}
+
+// TestRunContextTimeout proves that the context aware helper stops a command
+// at its deadline, so the BuildKit build cannot outlive the smoke test.
+func TestRunContextTimeout(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	out, err := runContext(ctx, "", os.Args[0], []string{"-test.run=TestSZ09LiteSleeper"}, "SZ09_LITE_SLEEPER=1")
+	if err == nil {
+		t.Fatalf("the sleeper was not stopped: %s", out)
+	}
+	if ctx.Err() != context.DeadlineExceeded {
+		t.Errorf("context error = %v, want %v", ctx.Err(), context.DeadlineExceeded)
+	}
+	if elapsed := time.Since(start); elapsed > 30*time.Second {
+		t.Errorf("the sleeper ran for %s, want it to be stopped at the deadline", elapsed)
+	}
+}
+
+// TestSZ09LiteSleeper is the child process of TestRunContextTimeout.
+func TestSZ09LiteSleeper(t *testing.T) {
+	if os.Getenv("SZ09_LITE_SLEEPER") != "1" {
+		t.Skip("only runs as the child of TestRunContextTimeout")
+	}
+	time.Sleep(5 * time.Minute)
 }

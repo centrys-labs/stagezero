@@ -73,14 +73,39 @@ jobs:
         run: |
           set -euo pipefail
           echo "cpus: $(nproc), memory: $(free -g | awk '/^Mem:/{print $2}') GB"
-          df -h /
-          free_g=$(df -Pk / | awk 'NR==2 {printf "%d", $4/1048576}')
-          if [ "$free_g" -lt 15 ]; then
-            echo "::error::${free_g} GB free on the runner filesystem, 15 GB required"
+          df -h / "$GITHUB_WORKSPACE" "${RUNNER_TEMP:-/tmp}"
+          # Measured peaks on this runner image. The API only path needs about
+          # 1 GB: Go modules 64 MB, Go build cache 178 MB, the api binaries
+          # 80 MB, the postgres:18-alpine image 433 MB, railpack 40 MB and the
+          # fixture tree. The optional BuildKit build adds the buildkit image
+          # (365 MB), the railpack frontend (46 MB), the railpack builder
+          # image (1.6 GB), the node runtime, the npm cache and the exported
+          # image layers, so it needs about 4.5 GB. The policy asks for twice
+          # the measured peak and stays inside the 14 GB of the standard
+          # runner, so a build that cannot fit is refused before it starts.
+          need_gb=2
+          if [ "${SZ09_LITE_BUILD:-}" = "1" ]; then
+            need_gb=9
+          fi
+          docker_root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || echo /var/lib/docker)
+          free_g=999999
+          for dir in / "$docker_root" "$GITHUB_WORKSPACE" "${RUNNER_TEMP:-/tmp}"; do
+            [ -d "$dir" ] || continue
+            avail=$(df -Pk "$dir" | awk 'NR==2 {printf "%d", $4/1048576}')
+            echo "$dir: ${avail} GB free"
+            if [ "$avail" -lt "$free_g" ]; then
+              free_g=$avail
+            fi
+          done
+          if [ "$free_g" -lt "$need_gb" ]; then
+            echo "::error::only ${free_g} GB are free on the runner filesystem, ${need_gb} GB are required for this run. The API only smoke needs 2 GB: unset the SZ09_LITE_BUILD repository variable to run it without the BuildKit build, or use a runner with more free disk."
             exit 1
           fi
           git --version
-          docker version --format '{{.Server.Version}}'
+          if ! docker version --format '{{.Server.Version}}'; then
+            echo "::error::the docker daemon is not available on the runner"
+            exit 1
+          fi
 
       - name: Check the operator configuration
         run: |
