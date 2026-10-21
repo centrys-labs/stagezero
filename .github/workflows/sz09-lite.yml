@@ -59,7 +59,6 @@ jobs:
       SZ09_FIXTURE_BRANCH: ${{ vars.SZ09_FIXTURE_BRANCH }}
       SZ09_FIXTURE_SHA: ${{ vars.SZ09_FIXTURE_SHA }}
       SZ09_LITE_BUILD: ${{ vars.SZ09_LITE_BUILD }}
-      SZ09_DIAG_DIR: ${{ runner.temp }}/sz09-lite
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,6 +108,9 @@ jobs:
 
       - name: Run the smoke test
         working-directory: api
+        env:
+          # The runner context is only available in step level keys.
+          SZ09_DIAG_DIR: ${{ runner.temp }}/sz09-lite
         run: go test ./smoke -run TestSZ09Lite -v -count=1 -timeout 30m
 
       - name: Upload diagnostics
