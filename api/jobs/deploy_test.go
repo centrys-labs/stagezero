@@ -154,6 +154,9 @@ func TestBuildDockerRunCmdSetsRestartPolicy(t *testing.T) {
 }
 
 func TestSourceBuildCommandsUsePinnedPlanAndSHA(t *testing.T) {
+	if !strings.Contains(railpackFrontendImage, railpackVersion) {
+		t.Errorf("frontend image %q does not pin the railpack version %q", railpackFrontendImage, railpackVersion)
+	}
 	sha := strings.Repeat("a", 40)
 	source := &SourceDeployment{Owner: "owner", Repo: "demo", SHA: sha}
 	if err := source.validate(); err != nil {
@@ -184,7 +187,7 @@ func TestSourceBuildCommandsUsePinnedPlanAndSHA(t *testing.T) {
 	}
 	for _, want := range []string{
 		"docker buildx build",
-		"BUILDKIT_SYNTAX=ghcr.io/railwayapp/railpack-frontend:" + railpackVersion,
+		"BUILDKIT_SYNTAX=" + railpackFrontendImage,
 		"cache-key=svc-1",
 		"type=docker,name=stagezero/svc-1:" + sha,
 		workdir + "/demo-" + sha,
